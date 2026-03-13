@@ -1,0 +1,34 @@
+image:
+  repository: ghcr.io/<owner>/docker-ai-cli-agents
+  tag: latest
+  pullPolicy: IfNotPresent
+
+workload:
+  main:
+    podSpec:
+      containers:
+        main:
+          command:
+            - /usr/local/bin/ai-cli-entrypoint
+            - --shell
+          stdin: true
+          tty: true
+          env:
+            AI_CLI_HOME: /mnt/myzmirror/myzdset/morgan
+            AI_CLI_LOG_LEVEL: info
+          volumeMounts:
+            - name: zstripe
+              mountPath: /mnt/myzstripe
+            - name: zmirror
+              mountPath: /mnt/myzmirror
+            - name: truenas-etc
+              mountPath: /mnt/truenas-etc
+              readOnly: true
+
+volumes:
+  - name: zstripe
+    hostPath: /mnt/myzstripe
+  - name: zmirror
+    hostPath: /mnt/myzmirror
+  - name: truenas-etc
+    hostPath: /etc
