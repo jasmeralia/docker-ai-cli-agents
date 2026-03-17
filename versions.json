@@ -1,9 +1,9 @@
 {
-  "release_version": "0.1.1",
+  "release_version": "0.1.2",
   "codex": {
     "source": "npm",
     "package": "@openai/codex",
-    "version": "0.114.0"
+    "version": "0.115.0"
   },
   "ccusage": {
     "source": "npm",
@@ -17,6 +17,6 @@
   },
   "claude": {
     "source": "install.sh",
-    "version": "2.1.74"
+    "version": "2.1.77"
   }
 }

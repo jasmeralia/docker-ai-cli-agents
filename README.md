@@ -5,6 +5,7 @@ Docker image and automation for running both Codex CLI and Claude CLI in a singl
 ## What this repo includes
 
 - An Ubuntu-based image with both CLIs plus common development tools
+- A pinned Node.js Active LTS runtime for npm-installed tooling
 - Usage analyzers for Claude Code (`ccusage`) and Codex CLI (`ccusage-codex`)
 - A mode-selecting entrypoint for `--codex`, `--ccusage`, `--codexusage`, `--claude`, or `--shell`
 - Global `codex`, `ccusage`, `ccusage-codex`, and `claude` binaries that work when the container runs as a non-root UID/GID
@@ -29,6 +30,9 @@ Set `AI_CLI_HOME` to the dataset path that should contain:
 The container workdir is `/workdir`. It is intentionally kept separate from `AI_CLI_HOME` so a bind-mounted host directory can appear as a clean working tree inside the container.
 
 If `AI_CLI_HOME` is not overridden, the image defaults it to `/var/lib/ai-cli-home`.
+
+The image currently pins Node.js `24.14.0` from the official Node.js
+Linux binaries, which bundles npm `11.9.0`.
 
 ## Build
 

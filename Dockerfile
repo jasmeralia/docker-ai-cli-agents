@@ -1,6 +1,7 @@
 FROM ubuntu:24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG NODE_VERSION=24.14.0
 ARG CODEX_NPM_PACKAGE=@openai/codex
 ARG CODEX_VERSION=0.0.0
 ARG CCUSAGE_NPM_PACKAGE=ccusage
@@ -20,6 +21,7 @@ LABEL org.opencontainers.image.title="docker-ai-cli-agents" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.version="${REPO_RELEASE_VERSION}" \
       io.github.docker-ai-cli-agents.release-version="${REPO_RELEASE_VERSION}" \
+      io.github.docker-ai-cli-agents.node-version="${NODE_VERSION}" \
       io.github.docker-ai-cli-agents.codex-version="${CODEX_VERSION}" \
       io.github.docker-ai-cli-agents.ccusage-version="${CCUSAGE_VERSION}" \
       io.github.docker-ai-cli-agents.codex-usage-version="${CODEX_USAGE_VERSION}" \
@@ -27,6 +29,9 @@ LABEL org.opencontainers.image.title="docker-ai-cli-agents" \
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+ARG TARGETARCH
+
+# hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
@@ -37,23 +42,35 @@ RUN apt-get update \
         gh \
         jq \
         less \
-        nodejs \
-        npm \
         python3 \
         python3-pip \
         ripgrep \
         tree \
         wget \
+        xz-utils \
         yq \
         zsh \
     && rm -rf /var/lib/apt/lists/*
 
+RUN case "${TARGETARCH:-amd64}" in \
+      amd64) node_arch="x64" ;; \
+      arm64) node_arch="arm64" ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" -o /tmp/node.tar.xz \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+    && rm -f /tmp/node.tar.xz \
+    && node --version \
+    && npm --version
+
+# hadolint ignore=DL3016
 RUN if [[ "${CODEX_VERSION}" == "0.0.0" || "${CODEX_VERSION}" == "latest" ]]; then \
       npm install -g "${CODEX_NPM_PACKAGE}"; \
     else \
       npm install -g "${CODEX_NPM_PACKAGE}@${CODEX_VERSION}"; \
     fi
 
+# hadolint ignore=DL3016
 RUN ccusage_package="${CCUSAGE_NPM_PACKAGE}" \
       && if [[ "${CCUSAGE_VERSION}" != "0.0.0" && "${CCUSAGE_VERSION}" != "latest" ]]; then \
         ccusage_package="${ccusage_package}@${CCUSAGE_VERSION}"; \

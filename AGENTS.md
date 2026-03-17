@@ -4,7 +4,7 @@
 
 Prefer the repo `Makefile` for routine validation and image creation:
 
-- `make lint` runs the local smoke and syntax checks.
+- `make lint` runs `hadolint` plus the local smoke and syntax checks.
 - `make lint SMOKE_IMAGE=docker-ai-cli-agents:test` also runs container
   smoke checks against a built image.
 - `make build` builds the Docker image with pinned versions from
@@ -16,6 +16,10 @@ Prefer the repo `Makefile` for routine validation and image creation:
   `make update-versions UPDATE_ARGS='--codex-version 1.2.3 --bump-release patch'`
 - Override the image tag with `IMAGE=...`, for example:
   `make build IMAGE=docker-ai-cli-agents:test`
+
+When making changes in this repository, always refresh `versions.json`
+to current upstream values with `make check-versions` and
+`make update-versions` unless there is a specific reason not to.
 
 ## Purpose
 
@@ -61,7 +65,7 @@ CLI versions are included in commit messages.
 
 Example commit:
 
-chore: update CLI versions (codex 1.4.2, claude 0.12.1)
+chore: update CLI versions (codex 1.4.2, ccusage 18.0.10, codex usage 18.0.10, claude 0.12.1)
 
 ------------------------------------------------------------------------
 
@@ -87,9 +91,11 @@ These directories store authentication and configuration files.
 
 # Entrypoint Behavior
 
-The container entrypoint supports three flags:
+The container entrypoint supports five flags:
 
 --codex\
+--ccusage\
+--codexusage\
 --claude\
 --shell
 
@@ -100,6 +106,8 @@ If **no argument** is specified the container defaults to:
 Examples:
 
 docker run image --codex\
+docker run image --ccusage\
+docker run image --codexusage\
 docker run image --claude\
 docker run image --shell
 
@@ -136,6 +144,9 @@ wget\
 bash\
 zsh
 
+The image should track current stable Node.js/npm releases. Node 18 is
+EOL as of March 27, 2025 and should not be reintroduced.
+
 ------------------------------------------------------------------------
 
 # CLI Installation
@@ -146,6 +157,9 @@ Installed from npm:
 
 npm install -g @openai/codex
 
+The repository currently installs Node.js `24.14.0` from the official
+Node.js Linux binaries, which bundles npm `11.9.0`.
+
 Authentication is done using ChatGPT subscription login:
 
 codex login --device-auth
@@ -153,6 +167,19 @@ codex login --device-auth
 Configuration stored in:
 
 \${AI_CLI_HOME}/.codex
+
+------------------------------------------------------------------------
+
+## Usage Analyzers
+
+Installed from npm:
+
+npm install -g ccusage @ccusage/codex
+
+The binaries are:
+
+- `ccusage` for Claude Code usage analysis
+- `ccusage-codex` for Codex CLI usage analysis
 
 ------------------------------------------------------------------------
 
@@ -185,13 +212,15 @@ AI_CLI_LOG_LEVEL=info\|debug
 
 # versions.json
 
-This file tracks the current CLI versions.
+This file tracks the current pinned tool versions.
 
 Example:
 
 { "release_version": "0.1.0", "codex": { "source": "npm", "package":
-"@openai/codex", "version": "x.y.z" }, "claude": { "source":
-"install.sh", "version": "x.y.z" } }
+"@openai/codex", "version": "x.y.z" }, "ccusage": { "source": "npm",
+"package": "ccusage", "version": "x.y.z" }, "codex_usage": { "source":
+"npm", "package": "@ccusage/codex", "version": "x.y.z" }, "claude": {
+"source": "install.sh", "version": "x.y.z" } }
 
 ------------------------------------------------------------------------
 
@@ -201,6 +230,8 @@ Two systems participate in automation:
 
 Jenkins\
 GitHub Actions
+
+Additional Jenkins setup guidance lives in `docs/jenkins.md`.
 
 ------------------------------------------------------------------------
 
@@ -217,8 +248,9 @@ Responsibilities:
 1.  Checkout repository
 2.  Read versions.json
 3.  Detect latest Codex version from npm
-4.  Detect latest Claude version using probe container
-5.  If version change detected:
+4.  Detect latest `ccusage` and `@ccusage/codex` versions from npm
+5.  Detect latest Claude version using probe container
+6.  If version change detected:
     -   update versions.json
     -   bump repo release version
     -   commit changes
