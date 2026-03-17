@@ -9,6 +9,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Update versions.json")
     parser.add_argument("--file", default="versions.json", help="Path to versions.json")
     parser.add_argument("--codex-version")
+    parser.add_argument("--ccusage-version")
+    parser.add_argument("--codex-usage-version")
     parser.add_argument("--claude-version")
     parser.add_argument("--release-version")
     parser.add_argument("--bump-release", choices=["major", "minor", "patch"])
@@ -31,6 +33,10 @@ def main() -> int:
 
     if args.codex_version:
         data["codex"]["version"] = args.codex_version
+    if args.ccusage_version:
+        data["ccusage"]["version"] = args.ccusage_version
+    if args.codex_usage_version:
+        data["codex_usage"]["version"] = args.codex_usage_version
     if args.claude_version:
         data["claude"]["version"] = args.claude_version
 

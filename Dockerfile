@@ -3,6 +3,10 @@ FROM ubuntu:24.04
 ARG DEBIAN_FRONTEND=noninteractive
 ARG CODEX_NPM_PACKAGE=@openai/codex
 ARG CODEX_VERSION=0.0.0
+ARG CCUSAGE_NPM_PACKAGE=ccusage
+ARG CCUSAGE_VERSION=0.0.0
+ARG CODEX_USAGE_NPM_PACKAGE=@ccusage/codex
+ARG CODEX_USAGE_VERSION=0.0.0
 ARG CLAUDE_VERSION=0.0.0
 ARG REPO_RELEASE_VERSION=0.1.0
 ARG REPOSITORY_URL=https://github.com/owner/docker-ai-cli-agents
@@ -17,6 +21,8 @@ LABEL org.opencontainers.image.title="docker-ai-cli-agents" \
       org.opencontainers.image.version="${REPO_RELEASE_VERSION}" \
       io.github.docker-ai-cli-agents.release-version="${REPO_RELEASE_VERSION}" \
       io.github.docker-ai-cli-agents.codex-version="${CODEX_VERSION}" \
+      io.github.docker-ai-cli-agents.ccusage-version="${CCUSAGE_VERSION}" \
+      io.github.docker-ai-cli-agents.codex-usage-version="${CODEX_USAGE_VERSION}" \
       io.github.docker-ai-cli-agents.claude-version="${CLAUDE_VERSION}"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -47,6 +53,16 @@ RUN if [[ "${CODEX_VERSION}" == "0.0.0" || "${CODEX_VERSION}" == "latest" ]]; th
     else \
       npm install -g "${CODEX_NPM_PACKAGE}@${CODEX_VERSION}"; \
     fi
+
+RUN ccusage_package="${CCUSAGE_NPM_PACKAGE}" \
+      && if [[ "${CCUSAGE_VERSION}" != "0.0.0" && "${CCUSAGE_VERSION}" != "latest" ]]; then \
+        ccusage_package="${ccusage_package}@${CCUSAGE_VERSION}"; \
+      fi \
+      && codex_usage_package="${CODEX_USAGE_NPM_PACKAGE}" \
+      && if [[ "${CODEX_USAGE_VERSION}" != "0.0.0" && "${CODEX_USAGE_VERSION}" != "latest" ]]; then \
+        codex_usage_package="${codex_usage_package}@${CODEX_USAGE_VERSION}"; \
+      fi \
+      && npm install -g "${ccusage_package}" "${codex_usage_package}"
 
 RUN curl -fsSL https://claude.ai/install.sh | bash
 RUN install -m 0755 "$(readlink -f /root/.local/bin/claude)" /usr/local/bin/claude

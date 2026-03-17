@@ -3,7 +3,7 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-  echo "usage: $0 <--codex|--claude|--shell> [args...]" >&2
+  echo "usage: $0 <--codex|--ccusage|--codexusage|--claude|--shell> [args...]" >&2
   exit 64
 fi
 

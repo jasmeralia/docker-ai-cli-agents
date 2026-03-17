@@ -5,8 +5,9 @@ Docker image and automation for running both Codex CLI and Claude CLI in a singl
 ## What this repo includes
 
 - An Ubuntu-based image with both CLIs plus common development tools
-- A mode-selecting entrypoint for `--codex`, `--claude`, or `--shell`
-- Global `codex` and `claude` binaries that work when the container runs as a non-root UID/GID
+- Usage analyzers for Claude Code (`ccusage`) and Codex CLI (`ccusage-codex`)
+- A mode-selecting entrypoint for `--codex`, `--ccusage`, `--codexusage`, `--claude`, or `--shell`
+- Global `codex`, `ccusage`, `ccusage-codex`, and `claude` binaries that work when the container runs as a non-root UID/GID
 - `versions.json` as the single source of truth for release and CLI versions
 - Jenkins automation for scheduled version detection and repo tagging
 - GitHub Actions for image build and publish on tag push
@@ -34,6 +35,8 @@ If `AI_CLI_HOME` is not overridden, the image defaults it to `/var/lib/ai-cli-ho
 ```bash
 docker build \
   --build-arg CODEX_VERSION="$(jq -r '.codex.version' versions.json)" \
+  --build-arg CCUSAGE_VERSION="$(jq -r '.ccusage.version' versions.json)" \
+  --build-arg CODEX_USAGE_VERSION="$(jq -r '.codex_usage.version' versions.json)" \
   --build-arg CLAUDE_VERSION="$(jq -r '.claude.version' versions.json)" \
   --build-arg REPO_RELEASE_VERSION="$(jq -r '.release_version' versions.json)" \
   -t ghcr.io/<owner>/docker-ai-cli-agents:latest .
@@ -60,15 +63,19 @@ Explicit modes:
 
 ```bash
 docker run --rm -it image --codex
+docker run --rm -it image --ccusage
+docker run --rm -it image --codexusage
 docker run --rm -it image --claude
 docker run --rm -it image --shell
 ```
 
 Arguments after the mode selector are passed through to the selected CLI or shell.
 
+The usage analyzers read their data from the same persistent home directory mounted via `AI_CLI_HOME` and `HOME`, so they can inspect the local Claude Code and Codex usage history already stored under that path.
+
 ## Wrapper Scripts
 
-The repo includes [tncodex](/home/morgan/git/docker-ai-cli-agents/tncodex) and [tnclaude](/home/morgan/git/docker-ai-cli-agents/tnclaude). They:
+The repo includes [tncodex](/home/morgan/git/docker-ai-cli-agents/tncodex), [tnccusage](/home/morgan/git/docker-ai-cli-agents/tnccusage), [tncodexusage](/home/morgan/git/docker-ai-cli-agents/tncodexusage), and [tnclaude](/home/morgan/git/docker-ai-cli-agents/tnclaude). They:
 
 - mount `/mnt/myzstripe`, `/mnt/myzmirror`, and `/etc`
 - bind-mount the current host directory to `/workdir`
@@ -91,11 +98,13 @@ Examples:
 
 ```bash
 ./tncodex
+./tnccusage --help
+./tncodexusage --help
 ./tnclaude --help
 TN_AI_CLI_IMAGE=docker-ai-cli-agents:test-pinned ./tncodex --version
 ```
 
-If you want to call `tncodex` or `tnclaude` without `./`, place the repo root on your `PATH` or symlink the scripts into a directory already on your `PATH`.
+If you want to call `tncodex`, `tnccusage`, `tncodexusage`, or `tnclaude` without `./`, place the repo root on your `PATH` or symlink the scripts into a directory already on your `PATH`.
 
 ## Scripts
 

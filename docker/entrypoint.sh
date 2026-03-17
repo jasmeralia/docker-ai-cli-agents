@@ -70,6 +70,8 @@ log INFO "working directory: $(pwd)"
 log INFO "AI_CLI_HOME=${ai_cli_home}"
 log INFO "AI_CLI_LOG_LEVEL=${log_level}"
 log INFO "codex version: $(command_version codex)"
+log INFO "ccusage version: $(command_version ccusage)"
+log INFO "codex usage version: $(command_version ccusage-codex)"
 log INFO "claude version: $(command_version claude)"
 
 print_mount_status
@@ -80,6 +82,12 @@ case "${run_mode}" in
   --codex)
     exec codex "$@"
     ;;
+  --ccusage)
+    exec ccusage "$@"
+    ;;
+  --codexusage)
+    exec ccusage-codex "$@"
+    ;;
   --claude)
     exec claude "$@"
     ;;
@@ -87,7 +95,7 @@ case "${run_mode}" in
     exec "${SHELL:-/bin/bash}" "$@"
     ;;
   *)
-    log INFO "unknown selector '${run_mode}', expected --codex, --claude, or --shell"
+    log INFO "unknown selector '${run_mode}', expected --codex, --ccusage, --codexusage, --claude, or --shell"
     exit 64
     ;;
 esac

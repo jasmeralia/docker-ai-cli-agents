@@ -18,6 +18,8 @@ if [[ -n "${image_ref}" ]]; then
     exit 1
   fi
   docker run --rm "${image_ref}" --codex --version >/dev/null
+  docker run --rm "${image_ref}" --ccusage --version >/dev/null
+  docker run --rm "${image_ref}" --codexusage --version >/dev/null
   docker run --rm "${image_ref}" --claude --version >/dev/null
 fi
 

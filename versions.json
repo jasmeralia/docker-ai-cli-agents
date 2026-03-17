@@ -5,6 +5,16 @@
     "package": "@openai/codex",
     "version": "0.114.0"
   },
+  "ccusage": {
+    "source": "npm",
+    "package": "ccusage",
+    "version": "18.0.10"
+  },
+  "codex_usage": {
+    "source": "npm",
+    "package": "@ccusage/codex",
+    "version": "18.0.10"
+  },
   "claude": {
     "source": "install.sh",
     "version": "2.1.74"
