@@ -21,12 +21,10 @@ codex_usage_package="$(jq -r '.codex_usage.package' "${versions_file}")"
 current_codex="$(jq -r '.codex.version' "${versions_file}")"
 current_ccusage="$(jq -r '.ccusage.version' "${versions_file}")"
 current_codex_usage="$(jq -r '.codex_usage.version' "${versions_file}")"
-current_claude="$(jq -r '.claude.version' "${versions_file}")"
 
 latest_codex="$(npm view "${codex_package}" version)"
 latest_ccusage="$(npm view "${ccusage_package}" version)"
 latest_codex_usage="$(npm view "${codex_usage_package}" version)"
-latest_claude="$("${repo_root}/scripts/probe_claude_version.sh")"
 
 jq -n \
   --arg current_codex "${current_codex}" \
@@ -35,8 +33,6 @@ jq -n \
   --arg latest_ccusage "${latest_ccusage}" \
   --arg current_codex_usage "${current_codex_usage}" \
   --arg latest_codex_usage "${latest_codex_usage}" \
-  --arg current_claude "${current_claude}" \
-  --arg latest_claude "${latest_claude}" \
   '{
     codex: {
       current: $current_codex,
@@ -52,10 +48,5 @@ jq -n \
       current: $current_codex_usage,
       latest: $latest_codex_usage,
       changed: ($current_codex_usage != $latest_codex_usage)
-    },
-    claude: {
-      current: $current_claude,
-      latest: $latest_claude,
-      changed: ($current_claude != $latest_claude)
     }
   }'

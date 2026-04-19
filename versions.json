@@ -14,9 +14,5 @@
     "source": "npm",
     "package": "@ccusage/codex",
     "version": "18.0.10"
-  },
-  "claude": {
-    "source": "install.sh",
-    "version": "2.1.77"
   }
 }

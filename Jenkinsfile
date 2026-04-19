@@ -38,12 +38,9 @@ pipeline {
           env.LATEST_CCUSAGE = report.ccusage.latest
           env.CURRENT_CODEX_USAGE = report.codex_usage.current
           env.LATEST_CODEX_USAGE = report.codex_usage.latest
-          env.CURRENT_CLAUDE = report.claude.current
-          env.LATEST_CLAUDE = report.claude.latest
           env.CODEX_CHANGED = report.codex.changed.toString()
           env.CCUSAGE_CHANGED = report.ccusage.changed.toString()
           env.CODEX_USAGE_CHANGED = report.codex_usage.changed.toString()
-          env.CLAUDE_CHANGED = report.claude.changed.toString()
         }
       }
     }
@@ -53,8 +50,7 @@ pipeline {
         expression {
           env.CODEX_CHANGED == 'true' ||
           env.CCUSAGE_CHANGED == 'true' ||
-          env.CODEX_USAGE_CHANGED == 'true' ||
-          env.CLAUDE_CHANGED == 'true'
+          env.CODEX_USAGE_CHANGED == 'true'
         }
       }
       steps {
@@ -63,7 +59,6 @@ pipeline {
             --codex-version ${LATEST_CODEX} \
             --ccusage-version ${LATEST_CCUSAGE} \
             --codex-usage-version ${LATEST_CODEX_USAGE} \
-            --claude-version ${LATEST_CLAUDE} \
             --bump-release patch"
         '''
       }
@@ -74,8 +69,7 @@ pipeline {
         expression {
           env.CODEX_CHANGED == 'true' ||
           env.CCUSAGE_CHANGED == 'true' ||
-          env.CODEX_USAGE_CHANGED == 'true' ||
-          env.CLAUDE_CHANGED == 'true'
+          env.CODEX_USAGE_CHANGED == 'true'
         }
       }
       steps {
@@ -86,7 +80,7 @@ pipeline {
 
         sh '''
           git add versions.json
-          git commit -m "chore: update CLI versions (codex ${LATEST_CODEX}, ccusage ${LATEST_CCUSAGE}, codex usage ${LATEST_CODEX_USAGE}, claude ${LATEST_CLAUDE})"
+          git commit -m "chore: update CLI versions (codex ${LATEST_CODEX}, ccusage ${LATEST_CCUSAGE}, codex usage ${LATEST_CODEX_USAGE})"
           git tag "v${RELEASE_VERSION}"
           git push origin HEAD
           git push origin "v${RELEASE_VERSION}"

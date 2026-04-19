@@ -3,7 +3,7 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-  echo "usage: $0 <--codex|--ccusage|--codexusage|--claude|--shell> [args...]" >&2
+  echo "usage: $0 <--claude|--codex|--ccusage|--codexusage|--shell> [args...]" >&2
   exit 64
 fi
 
@@ -12,15 +12,19 @@ shift
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 workspace_dir="$(pwd -P)"
-myzstripe_src="${TN_MYZSTRIPE_SRC:-/mnt/myzstripe}"
-myzmirror_src="${TN_MYZMIRROR_SRC:-/mnt/myzmirror}"
-truenas_etc_src="${TN_TRUENAS_ETC_SRC:-/etc}"
-default_home="/mnt/myzmirror/myzdset/morgan"
-ai_cli_home="${AI_CLI_HOME:-${default_home}}"
+host_claude_dir="${HOME}/.claude"
+host_claude_config="${HOME}/.claude.json"
+host_codex_dir="${HOME}/.codex"
+host_gh_dir="${HOME}/.config/gh"
 
 detect_image() {
   if [[ -n "${TN_AI_CLI_IMAGE:-}" ]]; then
     printf '%s\n' "${TN_AI_CLI_IMAGE}"
+    return 0
+  fi
+
+  if [[ -n "${AI_CLI_IMAGE:-}" ]]; then
+    printf '%s\n' "${AI_CLI_IMAGE}"
     return 0
   fi
 
@@ -37,7 +41,7 @@ detect_image() {
     return 0
   fi
 
-  echo "unable to determine image reference; set TN_AI_CLI_IMAGE" >&2
+  echo "unable to determine image reference; set TN_AI_CLI_IMAGE or AI_CLI_IMAGE" >&2
   exit 1
 }
 
@@ -46,24 +50,25 @@ if [[ -t 0 && -t 1 ]]; then
   tty_flags=(-it)
 fi
 
-for source_path in "${myzstripe_src}" "${myzmirror_src}" "${truenas_etc_src}" "${workspace_dir}"; do
-  if [[ ! -e "${source_path}" ]]; then
-    echo "missing mount source: ${source_path}" >&2
-    exit 1
-  fi
-done
+mkdir -p "${host_claude_dir}" "${host_codex_dir}" "${host_gh_dir}"
+touch "${host_claude_config}"
+
+docker_args=()
+if [[ "${SANDBOX_DOCKER:-0}" == "1" ]]; then
+  docker_args+=(--mount "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock")
+fi
 
 image_ref="$(detect_image)"
 
 exec docker run --rm "${tty_flags[@]}" \
-  --user "$(id -u):$(id -g)" \
-  --mount "type=bind,src=${myzstripe_src},dst=/mnt/myzstripe" \
-  --mount "type=bind,src=${myzmirror_src},dst=/mnt/myzmirror" \
-  --mount "type=bind,src=${truenas_etc_src},dst=/mnt/truenas-etc,readonly" \
   --mount "type=bind,src=${workspace_dir},dst=/workdir" \
+  --mount "type=bind,src=${host_claude_dir},dst=/root/.claude" \
+  --mount "type=bind,src=${host_claude_config},dst=/root/.claude.json" \
+  --mount "type=bind,src=${host_codex_dir},dst=/root/.codex" \
+  --mount "type=bind,src=${host_gh_dir},dst=/root/.config/gh" \
+  "${docker_args[@]}" \
   --workdir /workdir \
-  -e "AI_CLI_HOME=${ai_cli_home}" \
+  -e "HOME=/root" \
   -e "AI_CLI_LOG_LEVEL=${AI_CLI_LOG_LEVEL:-info}" \
-  -e "HOME=${ai_cli_home}" \
   "${image_ref}" \
   "${mode}" "$@"

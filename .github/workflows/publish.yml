@@ -27,7 +27,6 @@ jobs:
           echo "codex_version=$(jq -r '.codex.version' versions.json)" >> "$GITHUB_OUTPUT"
           echo "ccusage_version=$(jq -r '.ccusage.version' versions.json)" >> "$GITHUB_OUTPUT"
           echo "codex_usage_version=$(jq -r '.codex_usage.version' versions.json)" >> "$GITHUB_OUTPUT"
-          echo "claude_version=$(jq -r '.claude.version' versions.json)" >> "$GITHUB_OUTPUT"
           echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
@@ -54,7 +53,6 @@ jobs:
             io.github.docker-ai-cli-agents.codex-version=${{ steps.versions.outputs.codex_version }}
             io.github.docker-ai-cli-agents.ccusage-version=${{ steps.versions.outputs.ccusage_version }}
             io.github.docker-ai-cli-agents.codex-usage-version=${{ steps.versions.outputs.codex_usage_version }}
-            io.github.docker-ai-cli-agents.claude-version=${{ steps.versions.outputs.claude_version }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -67,7 +65,6 @@ jobs:
             CODEX_VERSION=${{ steps.versions.outputs.codex_version }}
             CCUSAGE_VERSION=${{ steps.versions.outputs.ccusage_version }}
             CODEX_USAGE_VERSION=${{ steps.versions.outputs.codex_usage_version }}
-            CLAUDE_VERSION=${{ steps.versions.outputs.claude_version }}
             REPO_RELEASE_VERSION=${{ steps.versions.outputs.release_version }}
             REPOSITORY_URL=${{ github.server_url }}/${{ github.repository }}
             VCS_REF=${{ github.sha }}

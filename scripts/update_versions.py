@@ -11,7 +11,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--codex-version")
     parser.add_argument("--ccusage-version")
     parser.add_argument("--codex-usage-version")
-    parser.add_argument("--claude-version")
     parser.add_argument("--release-version")
     parser.add_argument("--bump-release", choices=["major", "minor", "patch"])
     return parser.parse_args()
@@ -37,8 +36,6 @@ def main() -> int:
         data["ccusage"]["version"] = args.ccusage_version
     if args.codex_usage_version:
         data["codex_usage"]["version"] = args.codex_usage_version
-    if args.claude_version:
-        data["claude"]["version"] = args.claude_version
 
     if args.release_version and args.bump_release:
         raise SystemExit("use either --release-version or --bump-release")
