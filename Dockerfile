@@ -17,7 +17,7 @@ ARG VCS_REF=unknown
 ARG BUILD_DATE=unknown
 
 LABEL org.opencontainers.image.title="docker-ai-cli-agents" \
-      org.opencontainers.image.description="Sandboxed AI dev environment with Claude Code, Codex, and Serena MCP for Python and Node.js development." \
+      org.opencontainers.image.description="Sandboxed AI dev environment with Claude Code, Codex, Serena MCP, and Odoo MCP for Python and Node.js development." \
       org.opencontainers.image.source="${REPOSITORY_URL}" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
@@ -44,12 +44,16 @@ RUN apt-get update \
         yq \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for Serena
+# Install uv for Serena and Odoo MCP
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV SERENA_BIN=/root/.local/bin/serena
+ENV UVX_BIN=/root/.local/bin/uvx
 ENV PATH="/root/.local/bin:${PATH}"
 
 # Install Serena MCP server
-RUN uv tool install -p 3.13 serena-agent@latest --prerelease=allow
+RUN uv tool install -p 3.13 serena-agent@latest --prerelease=allow \
+    && test -x "${SERENA_BIN}" \
+    && test -x "${UVX_BIN}"
 
 # hadolint ignore=DL3016
 RUN if [[ "${CODEX_VERSION}" == "0.0.0" || "${CODEX_VERSION}" == "latest" ]]; then \
