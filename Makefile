@@ -8,7 +8,6 @@ HADOLINT_IMAGE ?= hadolint/hadolint
 SHELLCHECK_IMAGE ?= koalaman/shellcheck:stable
 YAMLLINT_IMAGE ?= cytopia/yamllint
 RUFF_IMAGE ?= ghcr.io/astral-sh/ruff
-CLAUDE_CODE_VERSION := $(shell jq -r '.claude_code.version' versions.json)
 CODEX_VERSION := $(shell jq -r '.codex.version' versions.json)
 CCUSAGE_VERSION := $(shell jq -r '.ccusage.version' versions.json)
 CODEX_USAGE_VERSION := $(shell jq -r '.codex_usage.version' versions.json)
@@ -52,7 +51,6 @@ ruff:
 
 build:
 	docker build \
-		--build-arg CLAUDE_CODE_VERSION="$(CLAUDE_CODE_VERSION)" \
 		--build-arg CODEX_VERSION="$(CODEX_VERSION)" \
 		--build-arg CCUSAGE_VERSION="$(CCUSAGE_VERSION)" \
 		--build-arg CODEX_USAGE_VERSION="$(CODEX_USAGE_VERSION)" \

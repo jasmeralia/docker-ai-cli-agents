@@ -24,7 +24,6 @@ jobs:
         id: versions
         run: |
           echo "release_version=$(jq -r '.release_version' versions.json)" >> "$GITHUB_OUTPUT"
-          echo "claude_code_version=$(jq -r '.claude_code.version' versions.json)" >> "$GITHUB_OUTPUT"
           echo "codex_version=$(jq -r '.codex.version' versions.json)" >> "$GITHUB_OUTPUT"
           echo "ccusage_version=$(jq -r '.ccusage.version' versions.json)" >> "$GITHUB_OUTPUT"
           echo "codex_usage_version=$(jq -r '.codex_usage.version' versions.json)" >> "$GITHUB_OUTPUT"
@@ -51,7 +50,6 @@ jobs:
           labels: |
             org.opencontainers.image.version=${{ steps.versions.outputs.release_version }}
             io.github.docker-ai-cli-agents.release-version=${{ steps.versions.outputs.release_version }}
-            io.github.docker-ai-cli-agents.claude-code-version=${{ steps.versions.outputs.claude_code_version }}
             io.github.docker-ai-cli-agents.codex-version=${{ steps.versions.outputs.codex_version }}
             io.github.docker-ai-cli-agents.ccusage-version=${{ steps.versions.outputs.ccusage_version }}
             io.github.docker-ai-cli-agents.codex-usage-version=${{ steps.versions.outputs.codex_usage_version }}
@@ -64,7 +62,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            CLAUDE_CODE_VERSION=${{ steps.versions.outputs.claude_code_version }}
             CODEX_VERSION=${{ steps.versions.outputs.codex_version }}
             CCUSAGE_VERSION=${{ steps.versions.outputs.ccusage_version }}
             CODEX_USAGE_VERSION=${{ steps.versions.outputs.codex_usage_version }}

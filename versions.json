@@ -1,10 +1,5 @@
 {
   "release_version": "0.1.2",
-  "claude_code": {
-    "source": "npm",
-    "package": "@anthropic-ai/claude-code",
-    "version": "2.1.128"
-  },
   "codex": {
     "source": "npm",
     "package": "@openai/codex",

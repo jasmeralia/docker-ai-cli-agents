@@ -35,7 +35,7 @@ Primary goals:
 
 `node:20`
 
-Matches Anthropic's own devcontainer base. Claude Code (`@anthropic-ai/claude-code`) is installed from npm as a pinned version alongside Codex, ccusage, ccusage-codex, uv, and Serena.
+Matches Anthropic's own devcontainer base. Claude Code is installed via the official install script (`curl -fsSL https://claude.ai/install.sh | bash -s stable`) which always pulls the latest stable release. It is not version-pinned in `versions.json` — the `stable` channel is the source of truth.
 
 ---
 
@@ -145,7 +145,6 @@ Single source of truth for pinned tool versions. Updated by `scripts/update_vers
 ```json
 {
   "release_version": "0.1.x",
-  "claude_code": { "source": "npm", "package": "@anthropic-ai/claude-code", "version": "x.y.z" },
   "codex": { "source": "npm", "package": "@openai/codex", "version": "x.y.z" },
   "ccusage": { "source": "npm", "package": "ccusage", "version": "x.y.z" },
   "codex_usage": { "source": "npm", "package": "@ccusage/codex", "version": "x.y.z" }

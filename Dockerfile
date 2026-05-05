@@ -4,8 +4,6 @@ FROM node:20
 USER root
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG CLAUDE_CODE_NPM_PACKAGE=@anthropic-ai/claude-code
-ARG CLAUDE_CODE_VERSION=0.0.0
 ARG CODEX_NPM_PACKAGE=@openai/codex
 ARG CODEX_VERSION=0.0.0
 ARG CCUSAGE_NPM_PACKAGE=ccusage
@@ -24,7 +22,6 @@ LABEL org.opencontainers.image.title="docker-ai-cli-agents" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.version="${REPO_RELEASE_VERSION}" \
       io.github.docker-ai-cli-agents.release-version="${REPO_RELEASE_VERSION}" \
-      io.github.docker-ai-cli-agents.claude-code-version="${CLAUDE_CODE_VERSION}" \
       io.github.docker-ai-cli-agents.codex-version="${CODEX_VERSION}" \
       io.github.docker-ai-cli-agents.ccusage-version="${CCUSAGE_VERSION}" \
       io.github.docker-ai-cli-agents.codex-usage-version="${CODEX_USAGE_VERSION}"
@@ -57,12 +54,9 @@ RUN uv tool install -p 3.13 serena-agent@latest --prerelease=allow \
     && test -x "${SERENA_BIN}" \
     && test -x "${UVX_BIN}"
 
-# hadolint ignore=DL3016
-RUN if [[ "${CLAUDE_CODE_VERSION}" == "0.0.0" || "${CLAUDE_CODE_VERSION}" == "latest" ]]; then \
-      npm install -g "${CLAUDE_CODE_NPM_PACKAGE}"; \
-    else \
-      npm install -g "${CLAUDE_CODE_NPM_PACKAGE}@${CLAUDE_CODE_VERSION}"; \
-    fi
+# Install Claude Code (stable channel)
+RUN curl -fsSL https://claude.ai/install.sh | bash -s stable \
+    && install -m 0755 "$(readlink -f /root/.local/bin/claude)" /usr/local/bin/claude
 
 # hadolint ignore=DL3016
 RUN if [[ "${CODEX_VERSION}" == "0.0.0" || "${CODEX_VERSION}" == "latest" ]]; then \

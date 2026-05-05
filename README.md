@@ -32,7 +32,7 @@ docker build \
   -t docker-ai-cli-agents:latest .
 ```
 
-Claude Code version is pinned in `versions.json` alongside the other tools and passed as a build arg.
+Claude Code is installed via the official install script (`bash -s stable`) and is not version-pinned — the stable channel is the source of truth.
 
 ## Run
 
