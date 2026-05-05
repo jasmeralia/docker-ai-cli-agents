@@ -4,7 +4,7 @@ Docker image and automation for running Claude Code and Codex CLI in a sandboxed
 
 ## What this repo includes
 
-- A Docker image built on top of the official `ghcr.io/anthropics/claude-code` sandbox image
+- A Docker image built on `node:20` with Claude Code installed from npm
 - Both Claude Code (`claude`) and Codex CLI (`codex`) plus common development tools
 - Usage analyzers: `ccusage` (Claude Code) and `ccusage-codex` (Codex CLI)
 - [Serena MCP](https://github.com/oraios/serena) — code intelligence server, always registered for both agents on startup
@@ -32,7 +32,7 @@ docker build \
   -t docker-ai-cli-agents:latest .
 ```
 
-Claude Code itself comes from the base image — no separate version pin is needed.
+Claude Code version is pinned in `versions.json` alongside the other tools and passed as a build arg.
 
 ## Run
 

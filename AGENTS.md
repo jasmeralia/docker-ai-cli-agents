@@ -33,9 +33,9 @@ Primary goals:
 
 ## Base Image
 
-`ghcr.io/anthropics/claude-code:latest`
+`node:20`
 
-The official Claude Code sandbox image. Claude Code is not separately installed — it comes from this base. `uv`, Serena, Codex, ccusage, and ccusage-codex are layered on top.
+Matches Anthropic's own devcontainer base. Claude Code (`@anthropic-ai/claude-code`) is installed from npm as a pinned version alongside Codex, ccusage, ccusage-codex, uv, and Serena.
 
 ---
 
@@ -145,13 +145,12 @@ Single source of truth for pinned tool versions. Updated by `scripts/update_vers
 ```json
 {
   "release_version": "0.1.x",
+  "claude_code": { "source": "npm", "package": "@anthropic-ai/claude-code", "version": "x.y.z" },
   "codex": { "source": "npm", "package": "@openai/codex", "version": "x.y.z" },
   "ccusage": { "source": "npm", "package": "ccusage", "version": "x.y.z" },
   "codex_usage": { "source": "npm", "package": "@ccusage/codex", "version": "x.y.z" }
 }
 ```
-
-Claude Code version is not pinned here — it tracks the base image.
 
 ---
 

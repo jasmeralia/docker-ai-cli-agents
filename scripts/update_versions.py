@@ -8,6 +8,7 @@ from pathlib import Path
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Update versions.json")
     parser.add_argument("--file", default="versions.json", help="Path to versions.json")
+    parser.add_argument("--claude-code-version")
     parser.add_argument("--codex-version")
     parser.add_argument("--ccusage-version")
     parser.add_argument("--codex-usage-version")
@@ -30,6 +31,8 @@ def main() -> int:
     versions_path = Path(args.file)
     data = json.loads(versions_path.read_text())
 
+    if args.claude_code_version:
+        data["claude_code"]["version"] = args.claude_code_version
     if args.codex_version:
         data["codex"]["version"] = args.codex_version
     if args.ccusage_version:
