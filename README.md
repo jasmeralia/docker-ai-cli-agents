@@ -11,7 +11,7 @@ Docker image and automation for running Claude Code and Codex CLI in a sandboxed
 - `package.json` + `requirements.txt` as the source of truth for tool versions
 - Dependabot tracking npm, pip, GitHub Actions, and Docker base image
 - Auto-merge for Dependabot PRs (with CI gate) and automatic patch tag on every master merge
-- GitHub Actions for image build and publish on tag push
+- GitHub Actions for automatic patch tagging and image publish on every master merge
 - Sample TrueNAS custom app configuration
 
 ## Build
@@ -236,7 +236,7 @@ Tool versions are pinned in:
 - `package.json` — npm tools (`@anthropic-ai/claude-code`, `@openai/codex`, `ccusage`, `@ccusage/codex`)
 - `requirements.txt` — Python tools (`serena-agent`)
 
-Dependabot monitors both files weekly and raises PRs automatically. Dependabot PRs are auto-approved and auto-merged once CI (`make lint` + `make build`) passes. Each merge to master triggers a patch tag bump, which triggers a new image publish to GHCR.
+Dependabot monitors both files weekly and raises PRs automatically. Dependabot PRs are auto-approved and auto-merged once CI (`make lint` + `make build`) passes. Each merge to master triggers a patch tag bump and immediately builds and publishes a new image to GHCR in the same workflow run.
 
 To pin or roll back to a specific release, use the image tag:
 
