@@ -78,7 +78,13 @@ fi
 
 image_ref="$(detect_image)"
 
-exec docker run --rm "${tty_flags[@]}" \
+# Pull latest when no specific tag is requested; skip re-pull for pinned tags.
+pull_flag="--pull=missing"
+if [[ -z "${tag_override}" ]]; then
+  pull_flag="--pull=always"
+fi
+
+exec docker run --rm "${pull_flag}" "${tty_flags[@]}" \
   --mount "type=bind,src=${workspace_dir},dst=/workdir" \
   --mount "type=bind,src=${host_claude_dir},dst=/root/.claude" \
   --mount "type=bind,src=${host_claude_config},dst=/root/.claude.json" \
