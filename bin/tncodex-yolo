@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Run Codex without the Docker socket mount so the agent cannot access
+# host Docker. Approval prompts are already suppressed by the entrypoint.
+export SANDBOX_DOCKER=0
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${script_dir}/../scripts/run_with_truenas_mounts.sh" --codex-yolo "$@"

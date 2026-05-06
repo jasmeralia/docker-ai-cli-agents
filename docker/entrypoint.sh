@@ -3,6 +3,10 @@
 set -euo pipefail
 
 log_level="${AI_CLI_LOG_LEVEL:-info}"
+serena_bin="${SERENA_BIN:-/root/.local/bin/serena}"
+serena_project_cwd="${SERENA_PROJECT_CWD:-/workdir}"
+uvx_bin="${UVX_BIN:-/root/.local/bin/uvx}"
+codex_plugin_dir="${CODEX_PLUGIN_DIR:-/opt/claude-plugins/codex}"
 
 timestamp() {
   date +"%Y-%m-%dT%H:%M:%S%z"
@@ -47,7 +51,7 @@ register_serena_claude() {
   if ! claude mcp list 2>/dev/null | grep -q "^serena"; then
     log INFO "registering Serena MCP server with Claude Code"
     claude mcp add --scope user serena -- \
-      serena start-mcp-server --context claude-code --project-from-cwd \
+      "${serena_bin}" start-mcp-server --context=claude-code --project-from-cwd \
       2>/dev/null || log INFO "claude mcp add unavailable; skipping"
   else
     log DEBUG "Serena already registered with Claude Code"
@@ -57,20 +61,21 @@ register_serena_claude() {
 register_serena_codex() {
   local codex_config="${HOME}/.codex/config.toml"
   ensure_dir "${HOME}/.codex"
-  if ! grep -q '^\[mcp_servers\.serena\]' "${codex_config}" 2>/dev/null; then
-    log INFO "registering Serena MCP server with Codex"
-    cat >> "${codex_config}" <<'TOML'
+  if [[ -f "${codex_config}" ]] && grep -q '^\[mcp_servers\.serena\]' "${codex_config}"; then
+    log DEBUG "Serena already registered with Codex"
+    return 0
+  fi
+  log INFO "registering Serena MCP server with Codex"
+  cat >> "${codex_config}" <<TOML
 
 [mcp_servers.serena]
-command = "serena"
-args = ["start-mcp-server", "--context", "claude-code", "--project-from-cwd"]
-startup_timeout_sec = 15
+command = "${serena_bin}"
+args = ["start-mcp-server", "--project-from-cwd", "--context=codex"]
+cwd = "${serena_project_cwd}"
+startup_timeout_sec = 60
 tool_timeout_sec = 120
 enabled = true
 TOML
-  else
-    log DEBUG "Serena already registered with Codex"
-  fi
 }
 
 run_mode="--claude"
@@ -87,7 +92,9 @@ log INFO "claude version: $(command_version claude)"
 log INFO "codex version: $(command_version codex)"
 log INFO "ccusage version: $(command_version ccusage)"
 log INFO "codex usage version: $(command_version ccusage-codex)"
-log INFO "serena version: $(command_version serena)"
+log INFO "serena version: $(command_version "${serena_bin}")"
+log INFO "uvx version: $(command_version "${uvx_bin}")"
+log INFO "gh version: $(command_version gh)"
 
 ensure_dir "${HOME}/.claude"
 ensure_dir "${HOME}/.codex"
@@ -97,9 +104,21 @@ register_serena_codex
 
 case "${run_mode}" in
   --claude)
-    exec claude --dangerously-skip-permissions "$@"
+    exec claude --plugin-dir "${codex_plugin_dir}" "$@"
+    ;;
+  --claude-safe)
+    exec claude --plugin-dir "${codex_plugin_dir}" --permission-mode acceptEdits "$@"
+    ;;
+  --claude-yolo)
+    exec claude --plugin-dir "${codex_plugin_dir}" --dangerously-skip-permissions "$@"
     ;;
   --codex)
+    exec codex "$@"
+    ;;
+  --codex-safe)
+    exec codex -a untrusted "$@"
+    ;;
+  --codex-yolo)
     exec codex --dangerously-bypass-approvals-and-sandbox "$@"
     ;;
   --ccusage)
@@ -108,11 +127,17 @@ case "${run_mode}" in
   --codexusage)
     exec ccusage-codex "$@"
     ;;
+  --register-mcp-json)
+    ensure_dir "${HOME}/.codex"
+    exec python3 /usr/local/bin/register-mcp-json \
+      "${1:-${serena_project_cwd}/.mcp.json}" \
+      "${2:-${HOME}/.codex/config.toml}"
+    ;;
   --shell)
     exec "${SHELL:-/bin/bash}" "$@"
     ;;
   *)
-    log INFO "unknown selector '${run_mode}', expected --claude, --codex, --ccusage, --codexusage, or --shell"
+    log INFO "unknown selector '${run_mode}', expected --claude, --claude-safe, --claude-yolo, --codex, --codex-safe, --codex-yolo, --ccusage, --codexusage, --register-mcp-json, or --shell"
     exit 64
     ;;
 esac

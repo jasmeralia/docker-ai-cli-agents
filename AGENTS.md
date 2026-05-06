@@ -1,392 +1,183 @@
-# docker-ai-cli-agents --- Project Context
+# docker-ai-cli-agents — Project Context
 
 ## Developer Entry Points
 
 Prefer the repo `Makefile` for routine validation and image creation:
 
-- `make lint` runs `hadolint` plus the local smoke and syntax checks.
-- `make lint SMOKE_IMAGE=docker-ai-cli-agents:test` also runs container
-  smoke checks against a built image.
-- `make build` builds the Docker image with pinned versions from
-  `versions.json`.
-- `make check-versions` prints the upstream version report used by
-  automation.
-- `make update-versions UPDATE_ARGS='...'` forwards arguments to
-  `scripts/update_versions.py`, for example:
-  `make update-versions UPDATE_ARGS='--codex-version 1.2.3 --bump-release patch'`
-- Override the image tag with `IMAGE=...`, for example:
-  `make build IMAGE=docker-ai-cli-agents:test`
+- `make lint` — runs hadolint, shellcheck, yamllint, and the smoke tests
+- `make lint SMOKE_IMAGE=docker-ai-cli-agents:test` — also runs container smoke checks
+- `make build` — builds the Docker image (derives release version from the latest git tag)
+- `make build IMAGE=docker-ai-cli-agents:test` — build with a custom tag
 
-When making changes in this repository, always refresh `versions.json`
-to current upstream values with `make check-versions` and
-`make update-versions` unless there is a specific reason not to.
+When making code changes, always update `README.md` and `AGENTS.md` to reflect what changed — entrypoint behavior, new env vars, new MCP servers, changed script paths, new make targets, etc. Documentation is part of the changeset, not a follow-up task.
+
+---
 
 ## Purpose
 
-This repository provides a Docker image containing both the **Codex
-CLI** and **Claude CLI** so they can run easily in environments such as
-**TrueNAS SCALE (Goldeye)** without modifying the host system.
-
-The image is intended to be used as a developer utility container
-capable of interacting with repositories and files stored on TrueNAS
-datasets.
+This repository provides a Docker image containing Claude Code (`claude`) and Codex CLI (`codex`) so they can run in sandboxed environments — originally designed for TrueNAS SCALE but usable anywhere Docker runs.
 
 Primary goals:
 
--   Provide **one container image** containing both CLIs.
--   Support **subscription-based authentication** (ChatGPT login for
-    Codex, Claude account login).
--   Work cleanly in **TrueNAS SCALE environments**.
--   Maintain **persistent CLI configuration directories** outside the
-    container.
--   Provide automated **version detection, build, and publishing**
-    pipelines.
--   Provide good **stdout logging** compatible with tools like
-    **Dozzle**.
+- Provide one container image with both CLIs plus Serena MCP and Odoo MCP support
+- Support subscription-based authentication (Claude account for Claude Code, ChatGPT subscription for Codex)
+- Maintain persistent CLI configuration directories outside the container via bind mounts
+- Provide automated version detection via Dependabot, CI gating, and auto-tagging on master push
+- Provide clean stdout logging compatible with tools like Dozzle
 
-------------------------------------------------------------------------
+---
 
-# Repository Name
+## Base Image
 
-docker-ai-cli-agents
+`node:20`
 
-Published image:
+Matches Anthropic's own devcontainer base. All npm tools (Claude Code, Codex, ccusage, ccusage-codex) are installed from `package.json` via `npm ci --prefix /opt/npm-tools` for reproducible builds. Dependabot tracks the npm ecosystem and raises PRs when new versions are available.
 
-ghcr.io/`<owner>`{=html}/docker-ai-cli-agents
+---
 
-Tags:
+## Version Management
 
--   latest
--   `<repo release tag>`{=html}
+Tool versions are tracked in two manifest files:
 
-Repository release version is independent of CLI versions.
+- `package.json` / `package-lock.json` — npm tools: `@anthropic-ai/claude-code`, `@openai/codex`, `ccusage`, `@ccusage/codex`
+- `requirements.txt` — Python tools: `serena-agent`
 
-CLI versions are included in commit messages.
+Dependabot monitors both files (npm and pip ecosystems) and raises PRs automatically. PRs from `dependabot[bot]` are auto-approved and auto-merged once CI passes. Each merge to master triggers the auto-tag workflow, which bumps the patch version and pushes a `v*` tag, which triggers the publish workflow to build and push the Docker image.
 
-Example commit:
+The release version is derived from the latest git tag at build time — no separate `versions.json` is needed.
 
-chore: update CLI versions (codex 1.4.2, ccusage 18.0.10, codex usage 18.0.10, claude 0.12.1)
+---
 
-------------------------------------------------------------------------
+## Container Runtime Layout
 
-# Container Runtime Layout
+The entrypoint expects the following bind mounts for persistent state:
 
-The container expects the following mounts when run in TrueNAS:
+| Host path | Container path | Purpose |
+|---|---|---|
+| `~/.claude` | `/root/.claude` | Claude Code config, MCP registrations, auth |
+| `~/.claude.json` | `/root/.claude.json` | Claude Code account config |
+| `~/.codex` | `/root/.codex` | Codex config including MCP server config |
+| `~/.config/gh` | `/root/.config/gh` | GitHub CLI auth |
+| `<workspace>` | `/workdir` | User project files |
 
-/mnt/myzstripe:/mnt/myzstripe\
-/mnt/myzmirror:/mnt/myzmirror\
-/etc:/mnt/truenas-etc:ro
+The `scripts/run_with_truenas_mounts.sh` script and `bin/tn*` wrappers set these up automatically.
 
-Environment variable used for configuration location:
+---
 
-AI_CLI_HOME=/mnt/myzmirror/myzdset/morgan
+## Entrypoint Behavior
 
-Inside this directory the container expects:
+The container entrypoint (`docker/entrypoint.sh`) selects a runtime mode via its first argument. Default is `--claude`.
 
-${AI_CLI_HOME}/.codex${AI_CLI_HOME}/.claude
+| Flag | Runs |
+|---|---|
+| `--claude` | `claude` (all prompts enabled) |
+| `--claude-safe` | `claude --permission-mode acceptEdits` (file ops auto-approved, shell prompted) |
+| `--claude-yolo` | `claude --dangerously-skip-permissions` (no prompts) |
+| `--codex` | `codex` (all prompts enabled) |
+| `--codex-safe` | `codex -a untrusted` (trusted read-only commands auto-approved, others prompted) |
+| `--codex-yolo` | `codex --dangerously-bypass-approvals-and-sandbox` (no prompts) |
+| `--ccusage` | `ccusage` |
+| `--codexusage` | `ccusage-codex` |
+| `--register-mcp-json` | register `.mcp.json` servers into `~/.codex/config.toml` and exit |
+| `--shell` | `$SHELL` (bash) |
 
-These directories store authentication and configuration files.
-
-------------------------------------------------------------------------
-
-# Entrypoint Behavior
-
-The container entrypoint supports five flags:
-
---codex\
---ccusage\
---codexusage\
---claude\
---shell
-
-If **no argument** is specified the container defaults to:
-
---codex
-
-Examples:
-
-docker run image --codex\
-docker run image --ccusage\
-docker run image --codexusage\
-docker run image --claude\
-docker run image --shell
+The Docker socket is mounted by default (when `/var/run/docker.sock` exists). Set `SANDBOX_DOCKER=0` to disable. The `-yolo` scripts always set `SANDBOX_DOCKER=0` to prevent combining unfettered agent access with host Docker access.
 
 Arguments after the selector are passed to the chosen CLI.
 
-------------------------------------------------------------------------
+On startup the entrypoint:
+1. Logs versions of all installed tools
+2. Ensures `~/.claude` and `~/.codex` exist
+3. Registers Serena MCP with Claude Code (if not already registered)
+4. Registers Serena MCP with Codex (if not already registered)
 
-# Base Image
+`.mcp.json` servers are **not** auto-registered into the Codex global config on startup. Use `--register-mcp-json` explicitly when you want to sync them (see MCP Servers section).
 
-Ubuntu LTS
+---
 
-Rationale:
+## MCP Servers
 
--   Compatibility with Claude installer
--   Full development toolchain availability
--   Predictable environment
+### Serena
 
-Installed tools include:
+Installed via `uv tool install -p 3.13` with the version pinned in `requirements.txt`. Binary at `/root/.local/bin/serena` (env var `SERENA_BIN`).
 
-git\
-gh\
-jq\
-yq\
-ripgrep\
-fd-find\
-less\
-tree\
-python3\
-pip\
-nodejs\
-npm\
-curl\
-wget\
-bash\
-zsh
+Registered for Claude Code with `--context=claude-code` and for Codex with `--context=codex`. Both use `--project-from-cwd` so Serena detects the project from `/workdir`. Codex registration also sets `cwd = "/workdir"` to ensure the working directory is correct when Codex spawns the MCP subprocess.
 
-The image should track current stable Node.js/npm releases. Node 18 is
-EOL as of March 27, 2025 and should not be reintroduced.
+The Serena project config for this repo lives in `.serena/project.yml`.
 
-------------------------------------------------------------------------
+**LSP support** — Serena uses [solidlsp](https://github.com/oraios/solidlsp) to drive language servers. Two categories:
 
-# CLI Installation
+- *Auto-installs the LSP*: bash (`bash-language-server` via npm), TypeScript/JS, Python (pyright), JSON, YAML, TOML, Terraform, Vue, and other npm-distributed LSPs. These work out of the box because Node 20 and npm are in the image.
+- *Requires pre-installed runtime*: Go (gopls), Rust (rust-analyzer), Java/Kotlin (jdtls), Ruby, C/C++ (clangd), and most compiled languages. Serena can drive these LSPs but the toolchain must be added to the Dockerfile first.
 
-## Codex CLI
+The image currently includes Node 20 + npm and Python 3.11, so bash, TypeScript/JavaScript, Python, and the data-format LSPs work without any changes.
 
-Installed from npm:
+### Odoo MCP
 
-npm install -g @openai/codex
+Run via `uvx mcp-server-odoo` (uvx at `/root/.local/bin/uvx`, env var `UVX_BIN`). No pre-installation needed.
 
-The repository currently installs Node.js `24.14.0` from the official
-Node.js Linux binaries, which bundles npm `11.9.0`.
+Not injected by the entrypoint. Configure once on the host in `~/.codex/config.toml` (Codex) or via `claude mcp add --scope user` (Claude Code). Because both config locations are bind-mounted, the registration persists across container runs without any per-run credential passing.
 
-Authentication is done using ChatGPT subscription login:
+### Codex plugin for Claude Code
 
-codex login --device-auth
+The [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) plugin is cloned into the image at build time (pinned to `CODEX_PLUGIN_CC_SHA`) and loaded via `--plugin-dir ${CODEX_PLUGIN_DIR}` for all Claude Code entrypoint modes. This avoids path conflicts with the host `~/.claude` bind mount, where the plugin may also be installed with different absolute paths. The plugin provides `/codex:*` slash commands inside Claude Code sessions.
 
-Configuration stored in:
+---
 
-\${AI_CLI_HOME}/.codex
+## CLI Installation
 
-------------------------------------------------------------------------
+All npm tools are installed via `npm ci --prefix /opt/npm-tools` from `package.json`. The binaries land in `/opt/npm-tools/node_modules/.bin/` which is added to `PATH`.
 
-## Usage Analyzers
+| Tool | npm Package |
+|---|---|
+| `claude` | `@anthropic-ai/claude-code` |
+| `codex` | `@openai/codex` |
+| `ccusage` | `ccusage` |
+| `ccusage-codex` | `@ccusage/codex` |
 
-Installed from npm:
+Serena (`serena`) is installed via `uv tool install` from `requirements.txt`. The `uvx` binary is used to run Odoo MCP on demand.
 
-npm install -g ccusage @ccusage/codex
+---
 
-The binaries are:
+## Wrapper Scripts
 
-- `ccusage` for Claude Code usage analysis
-- `ccusage-codex` for Codex CLI usage analysis
+`bin/tnclaude`, `bin/tncodex`, `bin/tnccusage`, `bin/tncodexusage` — thin wrappers around `scripts/run_with_truenas_mounts.sh`. Mount the Docker socket by default (when present). Claude auto-approves file edits but prompts for shell commands; Codex auto-approves only trusted read-only commands and prompts for everything else.
 
-------------------------------------------------------------------------
+`bin/tnclaude-yolo`, `bin/tncodex-yolo` — set `SANDBOX_DOCKER=0` unconditionally (no Docker socket) and suppress all prompts. Intended for fully-autonomous delegation where host Docker access is not needed.
 
-## Claude CLI
+`scripts/run_with_truenas_mounts.sh` accepts `--tag <image-tag>` after the mode selector to override the image tag. The `TN_AI_CLI_TAG` env var does the same.
 
-Installed via official installer:
+Image auto-detection order: `TN_AI_CLI_IMAGE` → `AI_CLI_IMAGE` → local `docker-ai-cli-agents:latest` → `ghcr.io/<github-owner>/docker-ai-cli-agents:latest` from git remote.
 
-curl -fsSL https://claude.ai/install.sh \| bash
+---
 
-Configuration stored in:
+## Logging
 
-\${AI_CLI_HOME}/.claude
+All logs go to stdout. The entrypoint uses `[TIMESTAMP] [LEVEL] message` format.
 
-------------------------------------------------------------------------
+`AI_CLI_LOG_LEVEL=debug` enables verbose output (default: `info`).
 
-# Logging
+Startup logs include: runtime mode, working directory, HOME, all tool versions, and MCP registration status.
 
-Logging is intentionally simple:
+---
 
--   All logs go to stdout/stderr
--   Compatible with Docker log viewers such as Dozzle
--   Entry script prints startup diagnostics
--   Version numbers are logged at startup
+## CI/CD
 
-Optional environment variable:
+**Dependabot** monitors `package.json` (npm), `requirements.txt` (pip), GitHub Actions, and the Docker base image. It raises weekly PRs for updates.
 
-AI_CLI_LOG_LEVEL=info\|debug
+**dependabot-auto-merge** workflow auto-approves and enables auto-merge for Dependabot PRs once CI passes.
 
-------------------------------------------------------------------------
+**ci** workflow runs `make lint` and `make build` on every PR to master, acting as the CI gate for auto-merge.
 
-# versions.json
+**auto-tag** workflow triggers on every push to master: bumps the patch version of the latest semver tag and pushes a new `v*` tag.
 
-This file tracks the current pinned tool versions.
+**publish** workflow triggers on `v*` tag push: builds the image, tags it `latest` and `<tag>`, and pushes to `ghcr.io/<owner>/docker-ai-cli-agents`. The release version is derived from the git tag (`GITHUB_REF_NAME` with `v` prefix stripped).
 
-Example:
+---
 
-{ "release_version": "0.1.0", "codex": { "source": "npm", "package":
-"@openai/codex", "version": "x.y.z" }, "ccusage": { "source": "npm",
-"package": "ccusage", "version": "x.y.z" }, "codex_usage": { "source":
-"npm", "package": "@ccusage/codex", "version": "x.y.z" }, "claude": {
-"source": "install.sh", "version": "x.y.z" } }
+## Development Scripts
 
-------------------------------------------------------------------------
-
-# CI/CD Flow
-
-Two systems participate in automation:
-
-Jenkins\
-GitHub Actions
-
-Additional Jenkins setup guidance lives in `docs/jenkins.md`.
-
-------------------------------------------------------------------------
-
-# Jenkins Responsibilities
-
-Jenkins runs a **monthly scheduled job**.
-
-Schedule:
-
-4:00 AM America/Los_Angeles
-
-Responsibilities:
-
-1.  Checkout repository
-2.  Read versions.json
-3.  Detect latest Codex version from npm
-4.  Detect latest `ccusage` and `@ccusage/codex` versions from npm
-5.  Detect latest Claude version using probe container
-6.  If version change detected:
-    -   update versions.json
-    -   bump repo release version
-    -   commit changes
-    -   create Git tag
-    -   push to GitHub
-
-------------------------------------------------------------------------
-
-# Claude Version Detection
-
-Claude version detection runs inside a temporary container.
-
-Process:
-
-1.  Launch Ubuntu container
-2.  Run Claude installer
-3.  Execute:
-
-claude --version
-
-4.  Capture version output
-5.  Return normalized version string
-
-This avoids scraping external sources and guarantees the detected
-version matches the installer.
-
-------------------------------------------------------------------------
-
-# Jenkins Docker Access
-
-Jenkins runs inside Docker but **must launch other containers**.
-
-Instead of Docker-in-Docker the design uses:
-
-Docker Outside of Docker
-
-Jenkins container mounts:
-
-/var/run/docker.sock
-
-Jenkins container must have permission to access the socket.
-
-Typical methods:
-
--   run Jenkins container as root
--   match docker group GID
--   dynamically map group at startup
-
-This allows Jenkins to run:
-
-docker run\
-docker build
-
-without nested Docker daemons.
-
-------------------------------------------------------------------------
-
-# GitHub Actions
-
-GitHub Actions build and publish the image.
-
-Trigger:
-
-push tag
-
-Workflow:
-
-1.  Checkout repository
-2.  Build Docker image
-3.  Tag image:
-
-latest\
-`<tag>`{=html}
-
-4.  Push to:
-
-ghcr.io/`<owner>`{=html}/docker-ai-cli-agents
-
-OCI labels include:
-
-repository URL\
-git SHA\
-repo release version\
-codex version\
-claude version
-
-------------------------------------------------------------------------
-
-# TrueNAS Deployment
-
-A sample TrueNAS custom app YAML is included in the repo.
-
-Features:
-
--   GHCR image reference
--   required dataset mounts
--   environment variables
--   interactive container support
--   minimal restart policy
-
-Container is intended to be run **on-demand** rather than as a
-persistent service.
-
-------------------------------------------------------------------------
-
-# Development Scripts
-
-scripts/
-
-check_versions.sh\
-probe_claude_version.sh\
-update_versions.py\
-smoke_test.sh
-
-These scripts support the Jenkins pipeline and local development.
-
-------------------------------------------------------------------------
-
-# Logging Expectations
-
-Startup logs include:
-
-selected runtime mode\
-installed CLI versions\
-mount verification\
-environment variables
-
-This ensures diagnostics are easily visible in Dozzle.
-
-------------------------------------------------------------------------
-
-# Future Extensions
-
-Possible enhancements:
-
--   optional workspace mount configuration
--   support for additional AI CLIs
--   automatic health check command
--   additional developer tooling
+| Script | Purpose |
+|---|---|
+| `scripts/run_with_truenas_mounts.sh` | Run any mode with standard host mounts |
+| `scripts/smoke_test.sh` | Bash syntax checks and optional container smoke tests |

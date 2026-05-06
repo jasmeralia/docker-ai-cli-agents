@@ -1,0 +1,34 @@
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    auto-merge: true
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    auto-merge: true
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    auto-merge: true
+    groups:
+      npm-tools:
+        patterns:
+          - "*"
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    auto-merge: true
