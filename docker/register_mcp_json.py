@@ -9,14 +9,17 @@ config with credentials that contain quotes or backslashes.
 Usage: register_mcp_json.py <mcp-json-path> <codex-config-path>
 """
 
+from __future__ import annotations
+
 import json
 import shutil
 import sys
 from pathlib import Path
+from typing import Any
 
 
-def toml_str(value: str) -> str:
-    """Escape a string for use inside a TOML basic string (double-quoted)."""
+def toml_str(value: Any) -> str:
+    """Escape a value for use inside a TOML basic string (double-quoted)."""
     return (
         str(value)
         .replace("\\", "\\\\")
@@ -45,10 +48,10 @@ def strip_server(config: str, name: str) -> str:
     return "\n".join(result)
 
 
-def build_server_block(name: str, server: dict) -> str:
-    command = server.get("command", "")
-    args = server.get("args", [])
-    env: dict = server.get("env", {})
+def build_server_block(name: str, server: dict[str, Any]) -> str:
+    command: str = server.get("command", "")
+    args: list[Any] = server.get("args", [])
+    env: dict[str, Any] = server.get("env", {})
 
     args_toml = "[" + ", ".join(f'"{toml_str(a)}"' for a in args) + "]"
     block = (
@@ -68,18 +71,23 @@ def build_server_block(name: str, server: dict) -> str:
 
 def main() -> int:
     if len(sys.argv) != 3:
-        print(f"usage: {sys.argv[0]} <mcp-json-path> <codex-config-path>", file=sys.stderr)
+        print(
+            f"usage: {sys.argv[0]} <mcp-json-path> <codex-config-path>",
+            file=sys.stderr,
+        )
         return 1
 
     mcp_json_path = Path(sys.argv[1])
     codex_config_path = Path(sys.argv[2])
 
-    data = json.loads(mcp_json_path.read_text())
-    servers: dict = data.get("mcpServers", {})
+    data: dict[str, Any] = json.loads(mcp_json_path.read_text(encoding="utf-8"))
+    servers: dict[str, Any] = data.get("mcpServers", {})
     if not servers:
         return 0
 
-    existing = codex_config_path.read_text() if codex_config_path.exists() else ""
+    existing = ""
+    if codex_config_path.exists():
+        existing = codex_config_path.read_text(encoding="utf-8")
 
     for name in servers:
         existing = strip_server(existing, name)
@@ -88,7 +96,7 @@ def main() -> int:
     content = existing.rstrip("\n") + "\n" + additions
 
     tmp = codex_config_path.with_suffix(".tmp")
-    tmp.write_text(content)
+    tmp.write_text(content, encoding="utf-8")
     shutil.move(str(tmp), codex_config_path)
 
     print(
