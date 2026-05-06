@@ -127,9 +127,9 @@ gh auth status
 
 ### Tighter scope (recommended for yolo modes)
 
-The OAuth token from `gh auth login` grants broad repository access. For narrower control — particularly blocking the agent from merging PRs or pushing code — use a fine-grained PAT instead.
+The OAuth token from `gh auth login` grants broad repository access. `gh auth login --scopes` can customize classic OAuth scopes, but classic scopes have no read-only contents option — `repo` is all-or-nothing for repository access. The per-resource permission levels (Contents: Read only, Pull requests: Read+Write, etc.) are only available via fine-grained PATs, which must be created through the GitHub web UI.
 
-Create one at [github.com/settings/tokens](https://github.com/settings/tokens) with the following repository permissions. Granting **Contents: Read only** is the critical constraint — PR merges require Contents write, so this blocks the agent from merging while leaving PR creation and editing intact.
+For narrower control — particularly blocking the agent from merging PRs or pushing code — create a fine-grained PAT at [github.com/settings/tokens](https://github.com/settings/tokens) with the following permissions. Granting **Contents: Read only** is the critical constraint — PR merges require Contents write, so this blocks the agent from merging while leaving PR creation and editing intact.
 
 | Permission | Level | Effect |
 |---|---|---|
