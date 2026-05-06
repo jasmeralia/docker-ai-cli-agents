@@ -78,6 +78,7 @@ The container entrypoint (`docker/entrypoint.sh`) selects a runtime mode via its
 | `--codex-yolo` | `codex --dangerously-bypass-approvals-and-sandbox` (no prompts) |
 | `--ccusage` | `ccusage` |
 | `--codexusage` | `ccusage-codex` |
+| `--register-mcp-json` | register `.mcp.json` servers into `~/.codex/config.toml` and exit |
 | `--shell` | `$SHELL` (bash) |
 
 The Docker socket is mounted by default (when `/var/run/docker.sock` exists). Set `SANDBOX_DOCKER=0` to disable. The `-yolo` scripts always set `SANDBOX_DOCKER=0` to prevent combining unfettered agent access with host Docker access.
@@ -89,7 +90,8 @@ On startup the entrypoint:
 2. Ensures `~/.claude` and `~/.codex` exist
 3. Registers Serena MCP with Claude Code (if not already registered)
 4. Always refreshes the Serena MCP registration in Codex config
-5. If `/workdir/.mcp.json` exists: registers each MCP server defined there with Codex (strips and re-adds on every start so config changes are picked up)
+
+`.mcp.json` servers are **not** auto-registered into the Codex global config on startup. Use `--register-mcp-json` explicitly when you want to sync them (see MCP Servers section).
 
 ---
 

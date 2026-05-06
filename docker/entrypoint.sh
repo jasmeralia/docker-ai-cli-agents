@@ -80,18 +80,6 @@ remove_codex_serena_config() {
   mv "${tmp_config}" "${codex_config}"
 }
 
-register_mcp_json_codex() {
-  local mcp_json="${serena_project_cwd}/.mcp.json"
-  if [[ ! -f "${mcp_json}" ]]; then
-    log DEBUG ".mcp.json not found in workspace; skipping"
-    return 0
-  fi
-  ensure_dir "${HOME}/.codex"
-  log INFO "registering MCPs from .mcp.json with Codex"
-  python3 /usr/local/bin/register-mcp-json "${mcp_json}" "${HOME}/.codex/config.toml" 2>&1 \
-    | while IFS= read -r line; do log INFO "${line}"; done \
-    || log INFO "MCP JSON registration failed; skipping"
-}
 
 register_serena_codex() {
   local codex_config="${HOME}/.codex/config.toml"
@@ -147,7 +135,6 @@ ensure_dir "${HOME}/.codex"
 
 register_serena_claude
 register_serena_codex
-register_mcp_json_codex
 
 case "${run_mode}" in
   --claude)
@@ -174,11 +161,17 @@ case "${run_mode}" in
   --codexusage)
     exec ccusage-codex "$@"
     ;;
+  --register-mcp-json)
+    ensure_dir "${HOME}/.codex"
+    exec python3 /usr/local/bin/register-mcp-json \
+      "${1:-${serena_project_cwd}/.mcp.json}" \
+      "${2:-${HOME}/.codex/config.toml}"
+    ;;
   --shell)
     exec "${SHELL:-/bin/bash}" "$@"
     ;;
   *)
-    log INFO "unknown selector '${run_mode}', expected --claude, --claude-safe, --claude-yolo, --codex, --codex-safe, --codex-yolo, --ccusage, --codexusage, or --shell"
+    log INFO "unknown selector '${run_mode}', expected --claude, --claude-safe, --claude-yolo, --codex, --codex-safe, --codex-yolo, --ccusage, --codexusage, --register-mcp-json, or --shell"
     exit 64
     ;;
 esac

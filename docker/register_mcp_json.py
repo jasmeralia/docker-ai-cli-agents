@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Read .mcp.json and register each MCP server into ~/.codex/config.toml.
 
-Existing entries for the same server names are stripped and replaced so
-running this on every container start is idempotent and picks up config
-changes. Uses proper TOML basic-string escaping to avoid corrupting the
-config with credentials that contain quotes or backslashes.
+This is an intentional, manual operation — not run automatically on container
+start. Invoke via: docker run ... --register-mcp-json
+
+Existing entries for the same server names are stripped and replaced so the
+operation is idempotent. Uses proper TOML basic-string escaping for values and
+validates server names and env keys against a strict allowlist so that
+project-controlled input cannot inject TOML syntax into the persistent config.
 
 Usage: register_mcp_json.py <mcp-json-path> <codex-config-path>
 """
@@ -12,10 +15,16 @@ Usage: register_mcp_json.py <mcp-json-path> <codex-config-path>
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
 from typing import Any
+
+# TOML bare-key characters: letters, digits, hyphens, underscores.
+# Env var keys additionally require a letter or underscore as the first char.
+_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+_ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def toml_str(value: Any) -> str:
@@ -30,6 +39,26 @@ def toml_str(value: Any) -> str:
         .replace("\r", "\\r")
         .replace("\t", "\\t")
     )
+
+
+def validate_servers(servers: dict[str, Any]) -> list[str]:
+    """Return a list of validation error strings (empty means valid)."""
+    errors: list[str] = []
+    for name, server in servers.items():
+        if not _NAME_RE.match(name):
+            errors.append(
+                f"server name {name!r} contains characters not allowed in a "
+                "TOML bare key (only A-Z, a-z, 0-9, '-', '_' are permitted)"
+            )
+        env: dict[str, Any] = server.get("env", {})
+        for key in env:
+            if not _ENV_KEY_RE.match(key):
+                errors.append(
+                    f"env key {key!r} in server {name!r} is not a valid "
+                    "identifier (must start with letter or '_', then "
+                    "letters/digits/'_' only)"
+                )
+    return errors
 
 
 def strip_server(config: str, name: str) -> str:
@@ -83,7 +112,14 @@ def main() -> int:
     data: dict[str, Any] = json.loads(mcp_json_path.read_text(encoding="utf-8"))
     servers: dict[str, Any] = data.get("mcpServers", {})
     if not servers:
+        print("no mcpServers entries found; nothing to register", file=sys.stderr)
         return 0
+
+    errors = validate_servers(servers)
+    if errors:
+        for err in errors:
+            print(f"error: {err}", file=sys.stderr)
+        return 1
 
     existing = ""
     if codex_config_path.exists():

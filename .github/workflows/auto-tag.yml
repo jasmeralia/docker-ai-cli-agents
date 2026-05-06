@@ -5,6 +5,10 @@ on:
     branches:
       - master
 
+concurrency:
+  group: auto-tag
+  cancel-in-progress: false
+
 jobs:
   bump-tag:
     runs-on: ubuntu-latest
@@ -21,11 +25,20 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          latest=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          major=$(echo "${latest}" | sed 's/v\([0-9]*\)\..*/\1/')
-          minor=$(echo "${latest}" | sed 's/v[0-9]*\.\([0-9]*\)\..*/\1/')
-          patch=$(echo "${latest}" | sed 's/v[0-9]*\.[0-9]*\.\([0-9]*\)/\1/')
-          new_tag="v${major}.${minor}.$((patch + 1))"
-          echo "Tagging ${new_tag} (previous: ${latest})"
-          git tag "${new_tag}"
-          git push origin "${new_tag}"
+          for attempt in 1 2 3; do
+            git fetch --tags origin
+            latest=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            major=$(echo "${latest}" | sed 's/v\([0-9]*\)\..*/\1/')
+            minor=$(echo "${latest}" | sed 's/v[0-9]*\.\([0-9]*\)\..*/\1/')
+            patch=$(echo "${latest}" | sed 's/v[0-9]*\.[0-9]*\.\([0-9]*\)/\1/')
+            new_tag="v${major}.${minor}.$((patch + 1))"
+            echo "Attempt ${attempt}: tagging ${new_tag} (previous: ${latest})"
+            if git tag "${new_tag}" && git push origin "${new_tag}"; then
+              echo "Tagged ${new_tag} successfully"
+              exit 0
+            fi
+            echo "Push failed (tag may already exist); retrying after refetch"
+            git tag -d "${new_tag}" 2>/dev/null || true
+          done
+          echo "Failed to push a unique tag after 3 attempts"
+          exit 1

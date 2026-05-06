@@ -6,7 +6,7 @@ Docker image and automation for running Claude Code and Codex CLI in a sandboxed
 
 - A Docker image built on `node:20` with Claude Code, Codex CLI, and usage analyzers installed from npm
 - [Serena MCP](https://github.com/oraios/serena) — code intelligence server, always registered for both agents on startup
-- [Odoo MCP](https://github.com/ivnvxd/mcp-server-odoo) — Odoo ERP integration, registered automatically when `ODOO_URL` is set
+- [Odoo MCP](https://github.com/ivnvxd/mcp-server-odoo) — Odoo ERP integration, configured once on the host via bind-mounted config files
 - A mode-selecting entrypoint for `--claude`, `--codex`, `--ccusage`, `--codexusage`, or `--shell`
 - `package.json` + `requirements.txt` as the source of truth for tool versions
 - Dependabot tracking npm, pip, GitHub Actions, and Docker base image
@@ -144,9 +144,18 @@ gh auth status
 
 [Serena](https://github.com/oraios/serena) provides code-intelligence tools (symbol search, semantic editing, diagnostics). It is registered unconditionally for both Claude Code and Codex on every container start. No configuration required.
 
-### Project `.mcp.json` (Codex auto-registration)
+### Project `.mcp.json` (Codex manual registration)
 
-Claude Code natively loads `.mcp.json` from the project root. The entrypoint extends this to Codex: if `/workdir/.mcp.json` exists, each server defined under `mcpServers` is registered in `~/.codex/config.toml` on every container start. Existing entries for the same server names are replaced, so config changes are picked up automatically without manual editing.
+Claude Code natively loads `.mcp.json` from the project root. Codex has no equivalent — its MCP config is global (`~/.codex/config.toml`). The image includes a helper script to bridge the gap when you intentionally want to sync a project's `.mcp.json` into the Codex global config:
+
+```bash
+docker run --rm \
+  --mount type=bind,src="$(pwd)",dst=/workdir \
+  --mount type=bind,src="${HOME}/.codex",dst=/root/.codex \
+  ghcr.io/<owner>/docker-ai-cli-agents:latest --register-mcp-json
+```
+
+This reads `/workdir/.mcp.json`, validates server names and env keys, strips any existing entries for the same names, and appends the new blocks. It is idempotent and safe to re-run after editing `.mcp.json`. Server names and env keys are validated against a strict allowlist (letters, digits, `-`, `_`) before any write occurs; malformed input is rejected with an error rather than written partially.
 
 ### Odoo (manual host configuration)
 
