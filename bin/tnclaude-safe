@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Run Claude Code with the Docker socket mounted but file edits auto-approved.
+# Shell commands still require explicit approval, so any attempt to interact
+# with the Docker daemon will prompt before executing.
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${script_dir}/../scripts/run_with_truenas_mounts.sh" --claude-safe "$@"

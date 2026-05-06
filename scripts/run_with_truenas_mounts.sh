@@ -70,7 +70,9 @@ mkdir -p "${host_claude_dir}" "${host_codex_dir}" "${host_gh_dir}"
 touch "${host_claude_config}"
 
 docker_args=()
-if [[ "${SANDBOX_DOCKER:-0}" == "1" ]]; then
+# Mount the Docker socket by default; set SANDBOX_DOCKER=0 to disable.
+# The -yolo scripts set this explicitly so the agent cannot reach host Docker.
+if [[ "${SANDBOX_DOCKER:-1}" != "0" ]] && [[ -S "/var/run/docker.sock" ]]; then
   docker_args+=(--mount "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock")
 fi
 

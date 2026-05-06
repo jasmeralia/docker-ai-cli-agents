@@ -209,11 +209,17 @@ case "${run_mode}" in
   --claude)
     exec claude "$@"
     ;;
+  --claude-safe)
+    exec claude --permission-mode acceptEdits "$@"
+    ;;
   --claude-yolo)
     exec claude --dangerously-skip-permissions "$@"
     ;;
   --codex)
     exec codex "$@"
+    ;;
+  --codex-safe)
+    exec codex -a untrusted "$@"
     ;;
   --codex-yolo)
     exec codex --dangerously-bypass-approvals-and-sandbox "$@"
@@ -228,7 +234,7 @@ case "${run_mode}" in
     exec "${SHELL:-/bin/bash}" "$@"
     ;;
   *)
-    log INFO "unknown selector '${run_mode}', expected --claude, --claude-yolo, --codex, --codex-yolo, --ccusage, --codexusage, or --shell"
+    log INFO "unknown selector '${run_mode}', expected --claude, --claude-safe, --claude-yolo, --codex, --codex-safe, --codex-yolo, --ccusage, --codexusage, or --shell"
     exit 64
     ;;
 esac

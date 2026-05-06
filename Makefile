@@ -12,8 +12,10 @@ SHELL_SCRIPTS := \
 	scripts/smoke_test.sh \
 	docker/entrypoint.sh \
 	bin/tnclaude \
+	bin/tnclaude-safe \
 	bin/tnclaude-yolo \
 	bin/tncodex \
+	bin/tncodex-safe \
 	bin/tncodex-yolo \
 	bin/tnccusage \
 	bin/tncodexusage

@@ -48,16 +48,18 @@ docker run --rm -it \
 Explicit modes:
 
 ```bash
-docker run --rm -it image --claude         # interactive, approval prompts enabled
+docker run --rm -it image --claude         # all prompts enabled
+docker run --rm -it image --claude-safe    # file edits auto-approved; shell commands prompted
 docker run --rm -it image --claude-yolo    # no prompts (--dangerously-skip-permissions)
-docker run --rm -it image --codex          # interactive, approval prompts enabled
+docker run --rm -it image --codex          # all prompts enabled
+docker run --rm -it image --codex-safe     # trusted read-only commands auto-approved; others prompted
 docker run --rm -it image --codex-yolo     # no prompts (--dangerously-bypass-approvals-and-sandbox)
 docker run --rm -it image --ccusage
 docker run --rm -it image --codexusage
 docker run --rm -it image --shell
 ```
 
-The standard `--claude` / `--codex` modes leave approval prompts enabled — appropriate when you are present or when the Docker socket is mounted (`SANDBOX_DOCKER=1`). The `--yolo` modes suppress all prompts; the `bin/tnclaude-yolo` and `bin/tncodex-yolo` wrappers also unset `SANDBOX_DOCKER` unconditionally to avoid combining unfettered agent access with host Docker access.
+The Docker socket is mounted by default in all non-yolo modes (when `/var/run/docker.sock` exists on the host). Set `SANDBOX_DOCKER=0` to disable. The `-yolo` scripts always disable the socket and suppress all prompts. The `-safe` scripts keep the socket but restrict autonomy — shell commands (including Docker calls) still require approval.
 
 Arguments after the mode selector are passed through to the selected CLI or shell.
 
@@ -71,20 +73,17 @@ The `bin/` directory contains `tnclaude`, `tncodex`, `tnccusage`, and `tncodexus
 - Forward all arguments to the selected mode
 
 ```bash
-bin/tnclaude
-bin/tncodex
+bin/tnclaude          # all prompts; socket mounted by default
+bin/tnclaude-safe     # file edits auto-approved, shell commands prompted; socket mounted
+bin/tnclaude-yolo     # no prompts; socket never mounted
+bin/tncodex           # all prompts; socket mounted by default
+bin/tncodex-safe      # trusted read-only commands auto-approved, others prompted; socket mounted
+bin/tncodex-yolo      # no prompts; socket never mounted
 bin/tnccusage --help
 bin/tncodexusage --help
 ```
 
-**Yolo (autonomous) variants** — same as above but explicitly without the Docker socket mount, for safe fully-autonomous delegation:
-
-```bash
-bin/tnclaude-yolo
-bin/tncodex-yolo
-```
-
-The `-yolo` scripts unset `SANDBOX_DOCKER` regardless of the environment, so the agent cannot reach the host Docker daemon. The agents still run with permission/approval prompts suppressed (same as the standard scripts). Use these when you want to delegate a task fully without needing external Docker access.
+The Docker socket (`/var/run/docker.sock`) is mounted by default in all non-yolo scripts when it exists on the host. Set `SANDBOX_DOCKER=0` to disable for a single run. The `-yolo` scripts hard-disable the socket and suppress all prompts — use them for fully-autonomous delegation where Docker access is not needed.
 
 To call without `bin/`, add the repo root or `bin/` to your `PATH`, or symlink the scripts into a directory already on your `PATH`.
 

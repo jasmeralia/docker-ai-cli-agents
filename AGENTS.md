@@ -70,15 +70,17 @@ The container entrypoint (`docker/entrypoint.sh`) selects a runtime mode via its
 
 | Flag | Runs |
 |---|---|
-| `--claude` | `claude` (permission prompts enabled) |
-| `--claude-yolo` | `claude --dangerously-skip-permissions` |
-| `--codex` | `codex` (approval prompts enabled) |
-| `--codex-yolo` | `codex --dangerously-bypass-approvals-and-sandbox` |
+| `--claude` | `claude` (all prompts enabled) |
+| `--claude-safe` | `claude --permission-mode acceptEdits` (file ops auto-approved, shell prompted) |
+| `--claude-yolo` | `claude --dangerously-skip-permissions` (no prompts) |
+| `--codex` | `codex` (all prompts enabled) |
+| `--codex-safe` | `codex -a untrusted` (trusted read-only commands auto-approved, others prompted) |
+| `--codex-yolo` | `codex --dangerously-bypass-approvals-and-sandbox` (no prompts) |
 | `--ccusage` | `ccusage` |
 | `--codexusage` | `ccusage-codex` |
 | `--shell` | `$SHELL` (bash) |
 
-The standard `--claude` / `--codex` modes leave approval prompts enabled — appropriate when the user is present or when the Docker socket is mounted. The `--yolo` modes suppress all prompts and are only used by `bin/tnclaude-yolo` / `bin/tncodex-yolo`, which also unset `SANDBOX_DOCKER` unconditionally.
+The Docker socket is mounted by default in all non-yolo modes (when `/var/run/docker.sock` exists). Set `SANDBOX_DOCKER=0` to disable. The `-yolo` scripts always set `SANDBOX_DOCKER=0` to prevent combining unfettered agent access with host Docker access.
 
 Arguments after the selector are passed to the chosen CLI.
 
@@ -130,9 +132,11 @@ Serena (`serena`) is installed via `uv tool install` from `requirements.txt`. Th
 
 ## Wrapper Scripts
 
-`bin/tnclaude`, `bin/tncodex`, `bin/tnccusage`, `bin/tncodexusage` — thin wrappers around `scripts/run_with_truenas_mounts.sh`. Each passes the appropriate mode flag and forwards remaining arguments.
+`bin/tnclaude`, `bin/tncodex`, `bin/tnccusage`, `bin/tncodexusage` — thin wrappers around `scripts/run_with_truenas_mounts.sh`. Mounts the Docker socket by default (when present). All prompts enabled.
 
-`bin/tnclaude-yolo`, `bin/tncodex-yolo` — same as above but unset `SANDBOX_DOCKER` unconditionally, ensuring the Docker socket is never mounted. Intended for fully-autonomous delegation where host Docker access is not needed and maximum agent isolation is preferred.
+`bin/tnclaude-safe`, `bin/tncodex-safe` — same mount behaviour (socket on by default), but runs the agent in a restricted-autonomy mode: Claude auto-approves file edits but prompts for all shell commands; Codex auto-approves only trusted read-only commands and prompts for everything else.
+
+`bin/tnclaude-yolo`, `bin/tncodex-yolo` — sets `SANDBOX_DOCKER=0` unconditionally (no Docker socket) and suppresses all prompts. Intended for fully-autonomous delegation where host Docker access is not needed.
 
 `scripts/run_with_truenas_mounts.sh` accepts `--tag <image-tag>` after the mode selector to override the image tag. The `TN_AI_CLI_TAG` env var does the same.
 
