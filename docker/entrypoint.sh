@@ -196,6 +196,7 @@ log INFO "ccusage version: $(command_version ccusage)"
 log INFO "codex usage version: $(command_version ccusage-codex)"
 log INFO "serena version: $(command_version "${serena_bin}")"
 log INFO "uvx version: $(command_version "${uvx_bin}")"
+log INFO "gh version: $(command_version gh)"
 
 ensure_dir "${HOME}/.claude"
 ensure_dir "${HOME}/.codex"

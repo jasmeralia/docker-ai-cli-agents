@@ -40,6 +40,7 @@ docker run --rm -it \
   --mount type=bind,src="${HOME}/.claude",dst=/root/.claude \
   --mount type=bind,src="${HOME}/.claude.json",dst=/root/.claude.json \
   --mount type=bind,src="${HOME}/.codex",dst=/root/.codex \
+  --mount type=bind,src="${HOME}/.config/gh",dst=/root/.config/gh \
   --workdir /workdir \
   -e HOME=/root \
   ghcr.io/<owner>/docker-ai-cli-agents:latest
