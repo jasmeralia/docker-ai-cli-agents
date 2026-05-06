@@ -111,9 +111,25 @@ The `--tag` flag (or `TN_AI_CLI_TAG` env var) replaces the tag portion of the de
 
 `~/.config/gh` is bind-mounted into all container modes, giving the agent access to the host GitHub CLI auth token. In yolo modes this is unsandboxed — the agent can use `gh` without prompts to read or write any resource the token allows.
 
-**Recommended mitigation: use a fine-grained PAT with narrow scope.**
+### Quick setup
 
-Create a fine-grained personal access token at [github.com/settings/tokens](https://github.com/settings/tokens) with the following repository permissions. Granting **Contents: Read only** (not Write) is the critical constraint — PR merges require Contents write, so this blocks the agent from merging while leaving PR creation and editing intact.
+Authenticate interactively — the browser-based OAuth flow requires no manual token creation:
+
+```bash
+gh auth login
+```
+
+Follow the prompts to authenticate via the browser. Verify afterwards:
+
+```bash
+gh auth status
+```
+
+### Tighter scope (recommended for yolo modes)
+
+The OAuth token from `gh auth login` grants broad repository access. For narrower control — particularly blocking the agent from merging PRs or pushing code — use a fine-grained PAT instead.
+
+Create one at [github.com/settings/tokens](https://github.com/settings/tokens) with the following repository permissions. Granting **Contents: Read only** is the critical constraint — PR merges require Contents write, so this blocks the agent from merging while leaving PR creation and editing intact.
 
 | Permission | Level | Effect |
 |---|---|---|
@@ -124,18 +140,10 @@ Create a fine-grained personal access token at [github.com/settings/tokens](http
 | Actions | Read | Check CI/workflow status |
 | Commit statuses | Read | Check PR status checks |
 
-Authenticate with the fine-grained token:
+Then authenticate with the token:
 
 ```bash
 gh auth login --with-token <<< "github_pat_..."
-# or interactively:
-gh auth login
-```
-
-Verify the active token and its scopes:
-
-```bash
-gh auth status
 ```
 
 ## MCP servers
