@@ -7,12 +7,10 @@ Docker image and automation for running Claude Code and Codex CLI in a sandboxed
 - A Docker image built on `node:20` with Claude Code, Codex CLI, and usage analyzers installed from npm
 - [Serena MCP](https://github.com/oraios/serena) — code intelligence server, always registered for both agents on startup
 - [Odoo MCP](https://github.com/ivnvxd/mcp-server-odoo) — Odoo ERP integration, configured once on the host via bind-mounted config files
-- A mode-selecting entrypoint for `--claude`, `--codex`, `--ccusage`, `--codexusage`, or `--shell`
+- A mode-selecting entrypoint for `--claude`, `--codex`, `--ccusage`, `--codexusage`, `--register-mcp-json`, or `--shell`
 - `package.json` + `requirements.txt` as the source of truth for tool versions
 - Dependabot tracking npm, pip, GitHub Actions, and Docker base image
-- Auto-merge for Dependabot PRs (with CI gate) and automatic patch tag on every master merge
-- GitHub Actions for automatic patch tagging and image publish on every master merge
-- Sample TrueNAS custom app configuration
+- Auto-merge for Dependabot PRs (with CI gate) and automatic patch tagging and image publish on every master merge
 
 ## Build
 
@@ -57,10 +55,9 @@ docker run --rm -it image --claude         # fully prompted (all operations requ
 docker run --rm -it image --codex          # fully prompted (all operations require approval)
 docker run --rm -it image --ccusage
 docker run --rm -it image --codexusage
+docker run --rm -it image --register-mcp-json
 docker run --rm -it image --shell
 ```
-
-The Docker socket is mounted by default in all non-yolo modes (when `/var/run/docker.sock` exists on the host). Set `SANDBOX_DOCKER=0` to disable. The `-yolo` scripts always disable the socket and suppress all prompts.
 
 Arguments after the mode selector are passed through to the selected CLI or shell.
 
@@ -70,7 +67,7 @@ The `bin/` directory contains `tnclaude`, `tncodex`, `tnccusage`, and `tncodexus
 
 - Bind-mount the current host directory to `/workdir`
 - Bind-mount `~/.claude`, `~/.claude.json`, `~/.codex`, and `~/.config/gh` from the host so config and auth persist between container runs
-- Auto-detect the image reference (see below)
+- Auto-detect the image reference and pull the latest image automatically when no tag is pinned
 - Forward all arguments to the selected mode
 
 ```bash
@@ -93,7 +90,7 @@ bin/tnclaude --tag v0.1.3
 TN_AI_CLI_TAG=v0.1.3 bin/tnclaude
 ```
 
-The `--tag` flag (or `TN_AI_CLI_TAG` env var) replaces the tag portion of the detected image, leaving the registry and repo path unchanged.
+The `--tag` flag (or `TN_AI_CLI_TAG` env var) replaces the tag portion of the detected image, leaving the registry and repo path unchanged. When a tag override is set, the image is not automatically pulled (assumed pinned intentionally).
 
 **Image detection order** (first match wins):
 
@@ -224,7 +221,7 @@ The [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) plugin is baked
 
 | Target | Description |
 |---|---|
-| `make lint` | Run hadolint, shellcheck, yamllint, and smoke tests |
+| `make lint` | Run all linters (hadolint, shellcheck, yamllint, ruff, mypy, pylint) and smoke tests |
 | `make lint SMOKE_IMAGE=docker-ai-cli-agents:test` | Also run container smoke tests |
 | `make build` | Build the image (release version from latest git tag) |
 | `make build IMAGE=docker-ai-cli-agents:test` | Build with a custom tag |
@@ -236,7 +233,11 @@ Tool versions are pinned in:
 - `package.json` — npm tools (`@anthropic-ai/claude-code`, `@openai/codex`, `ccusage`, `@ccusage/codex`)
 - `requirements.txt` — Python tools (`serena-agent`)
 
+<<<<<<< HEAD
 Dependabot monitors both files weekly and raises PRs automatically. Dependabot PRs are auto-approved and auto-merged once CI (`make lint` + `make build`) passes. Each merge to master triggers a patch tag bump and immediately builds and publishes a new image to GHCR in the same workflow run.
+=======
+Dependabot monitors both files weekly and raises PRs automatically. Dependabot PRs are auto-merged once CI (`make lint` + `make build`) passes. Each merge to master bumps the patch tag and immediately builds and publishes a new image to GHCR.
+>>>>>>> 43948b6 (docs: clean up README.md)
 
 To pin or roll back to a specific release, use the image tag:
 
