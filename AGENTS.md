@@ -4,14 +4,10 @@
 
 Prefer the repo `Makefile` for routine validation and image creation:
 
-- `make lint` — runs hadolint, shellcheck, yamllint, ruff, and the smoke tests
+- `make lint` — runs hadolint, shellcheck, yamllint, and the smoke tests
 - `make lint SMOKE_IMAGE=docker-ai-cli-agents:test` — also runs container smoke checks
-- `make build` — builds the Docker image with pinned versions from `versions.json`
+- `make build` — builds the Docker image (derives release version from the latest git tag)
 - `make build IMAGE=docker-ai-cli-agents:test` — build with a custom tag
-- `make check-versions` — prints the upstream version report used by automation
-- `make update-versions UPDATE_ARGS='--codex-version 1.2.3 --bump-release patch'` — forwards arguments to `scripts/update_versions.py`
-
-When making changes, always refresh `versions.json` with `make check-versions` and `make update-versions` unless there is a specific reason not to.
 
 When making code changes, always update `README.md` and `AGENTS.md` to reflect what changed — entrypoint behavior, new env vars, new MCP servers, changed script paths, new make targets, etc. Documentation is part of the changeset, not a follow-up task.
 
@@ -26,7 +22,7 @@ Primary goals:
 - Provide one container image with both CLIs plus Serena MCP and Odoo MCP support
 - Support subscription-based authentication (Claude account for Claude Code, ChatGPT subscription for Codex)
 - Maintain persistent CLI configuration directories outside the container via bind mounts
-- Provide automated version detection, build, and publishing pipelines
+- Provide automated version detection via Dependabot, CI gating, and auto-tagging on master push
 - Provide clean stdout logging compatible with tools like Dozzle
 
 ---
@@ -35,7 +31,20 @@ Primary goals:
 
 `node:20`
 
-Matches Anthropic's own devcontainer base. Claude Code is installed via the official install script (`curl -fsSL https://claude.ai/install.sh | bash -s stable`) which always pulls the latest stable release. It is not version-pinned in `versions.json` — the `stable` channel is the source of truth.
+Matches Anthropic's own devcontainer base. All npm tools (Claude Code, Codex, ccusage, ccusage-codex) are installed from `package.json` via `npm ci --prefix /opt/npm-tools` for reproducible builds. Dependabot tracks the npm ecosystem and raises PRs when new versions are available.
+
+---
+
+## Version Management
+
+Tool versions are tracked in two manifest files:
+
+- `package.json` / `package-lock.json` — npm tools: `@anthropic-ai/claude-code`, `@openai/codex`, `ccusage`, `@ccusage/codex`
+- `requirements.txt` — Python tools: `serena-agent`
+
+Dependabot monitors both files (npm and pip ecosystems) and raises PRs automatically. PRs from `dependabot[bot]` are auto-approved and auto-merged once CI passes. Each merge to master triggers the auto-tag workflow, which bumps the patch version and pushes a `v*` tag, which triggers the publish workflow to build and push the Docker image.
+
+The release version is derived from the latest git tag at build time — no separate `versions.json` is needed.
 
 ---
 
@@ -82,7 +91,7 @@ On startup the entrypoint:
 
 ### Serena
 
-Installed via `uv tool install -p 3.13 serena-agent@latest`. Binary at `/root/.local/bin/serena` (env var `SERENA_BIN`).
+Installed via `uv tool install -p 3.13` with the version pinned in `requirements.txt`. Binary at `/root/.local/bin/serena` (env var `SERENA_BIN`).
 
 Registered for Claude Code with `--context=claude-code` and for Codex with `--context=codex`. Both use `--project-from-cwd` so Serena detects the project from `/workdir`. Codex registration also sets `cwd = "/workdir"` to ensure the working directory is correct when Codex spawns the MCP subprocess.
 
@@ -102,27 +111,24 @@ The Odoo registration is always fully refreshed on each container start (remove 
 
 ## CLI Installation
 
-### Codex CLI
+All npm tools are installed via `npm ci --prefix /opt/npm-tools` from `package.json`. The binaries land in `/opt/npm-tools/node_modules/.bin/` which is added to `PATH`.
 
-Installed from npm: `npm install -g @openai/codex`
+| Tool | npm Package |
+|---|---|
+| `claude` | `@anthropic-ai/claude-code` |
+| `codex` | `@openai/codex` |
+| `ccusage` | `ccusage` |
+| `ccusage-codex` | `@ccusage/codex` |
 
-Auth: `codex login --device-auth` (ChatGPT subscription). Config stored in `~/.codex`.
-
-### Usage Analyzers
-
-Installed from npm: `npm install -g ccusage @ccusage/codex`
-
-Binaries: `ccusage` (Claude Code usage), `ccusage-codex` (Codex usage).
-
-### uv / uvx
-
-Installed via `curl -LsSf https://astral.sh/uv/install.sh | sh`. Both `uv` and `uvx` land at `/root/.local/bin/`. Used to install Serena and to run Odoo MCP on demand.
+Serena (`serena`) is installed via `uv tool install` from `requirements.txt`. The `uvx` binary is used to run Odoo MCP on demand.
 
 ---
 
 ## Wrapper Scripts
 
 `bin/tnclaude`, `bin/tncodex`, `bin/tnccusage`, `bin/tncodexusage` — thin wrappers around `scripts/run_with_truenas_mounts.sh`. Each passes the appropriate mode flag and forwards remaining arguments.
+
+`scripts/run_with_truenas_mounts.sh` accepts `--tag <image-tag>` after the mode selector to override the image tag. The `TN_AI_CLI_TAG` env var does the same.
 
 Image auto-detection order: `TN_AI_CLI_IMAGE` → `AI_CLI_IMAGE` → local `docker-ai-cli-agents:latest` → `ghcr.io/<github-owner>/docker-ai-cli-agents:latest` from git remote.
 
@@ -138,28 +144,17 @@ Startup logs include: runtime mode, working directory, HOME, all tool versions, 
 
 ---
 
-## versions.json
-
-Single source of truth for pinned tool versions. Updated by `scripts/update_versions.py`. Read by the Makefile to pass `--build-arg` values at build time.
-
-```json
-{
-  "release_version": "0.1.x",
-  "codex": { "source": "npm", "package": "@openai/codex", "version": "x.y.z" },
-  "ccusage": { "source": "npm", "package": "ccusage", "version": "x.y.z" },
-  "codex_usage": { "source": "npm", "package": "@ccusage/codex", "version": "x.y.z" }
-}
-```
-
----
-
 ## CI/CD
 
-**Jenkins** runs a monthly scheduled job (4:00 AM America/Los_Angeles) that detects upstream version changes, updates `versions.json`, bumps the release version, commits, tags, and pushes to GitHub.
+**Dependabot** monitors `package.json` (npm), `requirements.txt` (pip), GitHub Actions, and the Docker base image. It raises weekly PRs for updates.
 
-**GitHub Actions** triggers on tag push: builds the image, tags it `latest` and `<tag>`, and pushes to `ghcr.io/<owner>/docker-ai-cli-agents`.
+**dependabot-auto-merge** workflow auto-approves and enables auto-merge for Dependabot PRs once CI passes.
 
-Jenkins needs Docker Outside of Docker access (mounts `/var/run/docker.sock`). Additional Jenkins setup guidance is in `docs/jenkins.md`.
+**ci** workflow runs `make lint` and `make build` on every PR to master, acting as the CI gate for auto-merge.
+
+**auto-tag** workflow triggers on every push to master: bumps the patch version of the latest semver tag and pushes a new `v*` tag.
+
+**publish** workflow triggers on `v*` tag push: builds the image, tags it `latest` and `<tag>`, and pushes to `ghcr.io/<owner>/docker-ai-cli-agents`. The release version is derived from the git tag (`GITHUB_REF_NAME` with `v` prefix stripped).
 
 ---
 
@@ -168,6 +163,4 @@ Jenkins needs Docker Outside of Docker access (mounts `/var/run/docker.sock`). A
 | Script | Purpose |
 |---|---|
 | `scripts/run_with_truenas_mounts.sh` | Run any mode with standard host mounts |
-| `scripts/check_versions.sh` | Compare `versions.json` to upstream |
-| `scripts/update_versions.py` | Update `versions.json`, optionally bump release version |
-| `scripts/smoke_test.sh` | Bash syntax checks, JSON validation, optional container smoke tests |
+| `scripts/smoke_test.sh` | Bash syntax checks and optional container smoke tests |

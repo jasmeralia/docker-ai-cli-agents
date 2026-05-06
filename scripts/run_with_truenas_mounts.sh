@@ -3,12 +3,28 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-  echo "usage: $0 <--claude|--codex|--ccusage|--codexusage|--shell> [args...]" >&2
+  echo "usage: $0 <--claude|--codex|--ccusage|--codexusage|--shell> [--tag <image-tag>] [args...]" >&2
   exit 64
 fi
 
 mode="$1"
 shift
+
+# Parse --tag <value> from remaining args; forward everything else to the container
+tag_override="${TN_AI_CLI_TAG:-}"
+container_args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tag)
+      tag_override="$2"
+      shift 2
+      ;;
+    *)
+      container_args+=("$1")
+      shift
+      ;;
+  esac
+done
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 workspace_dir="$(pwd -P)"
@@ -18,31 +34,31 @@ host_codex_dir="${HOME}/.codex"
 host_gh_dir="${HOME}/.config/gh"
 
 detect_image() {
+  local base_image
+
   if [[ -n "${TN_AI_CLI_IMAGE:-}" ]]; then
-    printf '%s\n' "${TN_AI_CLI_IMAGE}"
-    return 0
+    base_image="${TN_AI_CLI_IMAGE}"
+  elif [[ -n "${AI_CLI_IMAGE:-}" ]]; then
+    base_image="${AI_CLI_IMAGE}"
+  elif docker image inspect docker-ai-cli-agents:latest >/dev/null 2>&1; then
+    base_image="docker-ai-cli-agents:latest"
+  else
+    local remote_url owner
+    remote_url="$(git -C "${repo_root}" config --get remote.origin.url || true)"
+    owner="$(printf '%s\n' "${remote_url}" | sed -nE 's#.*github\.com[:/]([^/]+)/docker-ai-cli-agents(\.git)?#\1#p')"
+    if [[ -n "${owner}" ]]; then
+      base_image="ghcr.io/${owner}/docker-ai-cli-agents:latest"
+    else
+      echo "unable to determine image reference; set TN_AI_CLI_IMAGE or AI_CLI_IMAGE" >&2
+      exit 1
+    fi
   fi
 
-  if [[ -n "${AI_CLI_IMAGE:-}" ]]; then
-    printf '%s\n' "${AI_CLI_IMAGE}"
-    return 0
+  if [[ -n "${tag_override}" ]]; then
+    printf '%s\n' "${base_image%:*}:${tag_override}"
+  else
+    printf '%s\n' "${base_image}"
   fi
-
-  if docker image inspect docker-ai-cli-agents:latest >/dev/null 2>&1; then
-    printf '%s\n' "docker-ai-cli-agents:latest"
-    return 0
-  fi
-
-  local remote_url owner
-  remote_url="$(git -C "${repo_root}" config --get remote.origin.url || true)"
-  owner="$(printf '%s\n' "${remote_url}" | sed -nE 's#.*github\.com[:/]([^/]+)/docker-ai-cli-agents(\.git)?#\1#p')"
-  if [[ -n "${owner}" ]]; then
-    printf 'ghcr.io/%s/docker-ai-cli-agents:latest\n' "${owner}"
-    return 0
-  fi
-
-  echo "unable to determine image reference; set TN_AI_CLI_IMAGE or AI_CLI_IMAGE" >&2
-  exit 1
 }
 
 tty_flags=(-i)
@@ -80,4 +96,4 @@ exec docker run --rm "${tty_flags[@]}" \
   -e "HOME=/root" \
   -e "AI_CLI_LOG_LEVEL=${AI_CLI_LOG_LEVEL:-info}" \
   "${image_ref}" \
-  "${mode}" "$@"
+  "${mode}" "${container_args[@]}"

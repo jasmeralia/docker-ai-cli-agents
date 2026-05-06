@@ -4,12 +4,6 @@ FROM node:20
 USER root
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG CODEX_NPM_PACKAGE=@openai/codex
-ARG CODEX_VERSION=0.0.0
-ARG CCUSAGE_NPM_PACKAGE=ccusage
-ARG CCUSAGE_VERSION=0.0.0
-ARG CODEX_USAGE_NPM_PACKAGE=@ccusage/codex
-ARG CODEX_USAGE_VERSION=0.0.0
 ARG REPO_RELEASE_VERSION=0.1.0
 ARG REPOSITORY_URL=https://github.com/owner/docker-ai-cli-agents
 ARG VCS_REF=unknown
@@ -21,10 +15,7 @@ LABEL org.opencontainers.image.title="docker-ai-cli-agents" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.version="${REPO_RELEASE_VERSION}" \
-      io.github.docker-ai-cli-agents.release-version="${REPO_RELEASE_VERSION}" \
-      io.github.docker-ai-cli-agents.codex-version="${CODEX_VERSION}" \
-      io.github.docker-ai-cli-agents.ccusage-version="${CCUSAGE_VERSION}" \
-      io.github.docker-ai-cli-agents.codex-usage-version="${CODEX_USAGE_VERSION}"
+      io.github.docker-ai-cli-agents.release-version="${REPO_RELEASE_VERSION}"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -49,32 +40,16 @@ ENV SERENA_BIN=/root/.local/bin/serena
 ENV UVX_BIN=/root/.local/bin/uvx
 ENV PATH="/root/.local/bin:${PATH}"
 
-# Install Serena MCP server
-RUN uv tool install -p 3.13 serena-agent@latest --prerelease=allow \
+# Install Serena MCP server from pinned version in requirements.txt
+COPY requirements.txt /tmp/requirements.txt
+RUN uv tool install -p 3.13 "$(grep '^serena-agent' /tmp/requirements.txt | head -1)" --prerelease=allow \
     && test -x "${SERENA_BIN}" \
     && test -x "${UVX_BIN}"
 
-# Install Claude Code (stable channel)
-RUN curl -fsSL https://claude.ai/install.sh | bash -s stable \
-    && install -m 0755 "$(readlink -f /root/.local/bin/claude)" /usr/local/bin/claude
-
-# hadolint ignore=DL3016
-RUN if [[ "${CODEX_VERSION}" == "0.0.0" || "${CODEX_VERSION}" == "latest" ]]; then \
-      npm install -g "${CODEX_NPM_PACKAGE}"; \
-    else \
-      npm install -g "${CODEX_NPM_PACKAGE}@${CODEX_VERSION}"; \
-    fi
-
-# hadolint ignore=DL3016
-RUN ccusage_pkg="${CCUSAGE_NPM_PACKAGE}" \
-      && if [[ "${CCUSAGE_VERSION}" != "0.0.0" && "${CCUSAGE_VERSION}" != "latest" ]]; then \
-        ccusage_pkg="${ccusage_pkg}@${CCUSAGE_VERSION}"; \
-      fi \
-      && codex_usage_pkg="${CODEX_USAGE_NPM_PACKAGE}" \
-      && if [[ "${CODEX_USAGE_VERSION}" != "0.0.0" && "${CODEX_USAGE_VERSION}" != "latest" ]]; then \
-        codex_usage_pkg="${codex_usage_pkg}@${CODEX_USAGE_VERSION}"; \
-      fi \
-      && npm install -g "${ccusage_pkg}" "${codex_usage_pkg}"
+# Install npm tools from lockfile for reproducible builds
+COPY package*.json /opt/npm-tools/
+RUN npm ci --prefix /opt/npm-tools
+ENV PATH="/opt/npm-tools/node_modules/.bin:${PATH}"
 
 COPY docker/entrypoint.sh /usr/local/bin/ai-cli-entrypoint
 RUN chmod +x /usr/local/bin/ai-cli-entrypoint

@@ -4,14 +4,13 @@ Docker image and automation for running Claude Code and Codex CLI in a sandboxed
 
 ## What this repo includes
 
-- A Docker image built on `node:20` with Claude Code installed from npm
-- Both Claude Code (`claude`) and Codex CLI (`codex`) plus common development tools
-- Usage analyzers: `ccusage` (Claude Code) and `ccusage-codex` (Codex CLI)
+- A Docker image built on `node:20` with Claude Code, Codex CLI, and usage analyzers installed from npm
 - [Serena MCP](https://github.com/oraios/serena) — code intelligence server, always registered for both agents on startup
 - [Odoo MCP](https://github.com/ivnvxd/mcp-server-odoo) — Odoo ERP integration, registered automatically when `ODOO_URL` is set
 - A mode-selecting entrypoint for `--claude`, `--codex`, `--ccusage`, `--codexusage`, or `--shell`
-- `versions.json` as the single source of truth for release and CLI versions
-- Jenkins automation for scheduled version detection and repo tagging
+- `package.json` + `requirements.txt` as the source of truth for tool versions
+- Dependabot tracking npm, pip, GitHub Actions, and Docker base image
+- Auto-merge for Dependabot PRs (with CI gate) and automatic patch tag on every master merge
 - GitHub Actions for image build and publish on tag push
 - Sample TrueNAS custom app configuration
 
@@ -21,18 +20,15 @@ Docker image and automation for running Claude Code and Codex CLI in a sandboxed
 make build
 ```
 
-Or manually with explicit versions:
+Or manually:
 
 ```bash
 docker build \
-  --build-arg CODEX_VERSION="$(jq -r '.codex.version' versions.json)" \
-  --build-arg CCUSAGE_VERSION="$(jq -r '.ccusage.version' versions.json)" \
-  --build-arg CODEX_USAGE_VERSION="$(jq -r '.codex_usage.version' versions.json)" \
-  --build-arg REPO_RELEASE_VERSION="$(jq -r '.release_version' versions.json)" \
+  --build-arg REPO_RELEASE_VERSION="$(git describe --tags --abbrev=0 | sed 's/^v//')" \
   -t docker-ai-cli-agents:latest .
 ```
 
-Claude Code is installed via the official install script (`bash -s stable`) and is not version-pinned — the stable channel is the source of truth.
+Tool versions come from `package.json` (npm) and `requirements.txt` (pip) baked into the image via `npm ci` and `uv tool install`.
 
 ## Run
 
@@ -79,10 +75,19 @@ bin/tncodexusage --help
 
 To call without `bin/`, add the repo root or `bin/` to your `PATH`, or symlink the scripts into a directory already on your `PATH`.
 
+**Image tag override** — run a specific release instead of `latest`:
+
+```bash
+bin/tnclaude --tag v0.1.3
+TN_AI_CLI_TAG=v0.1.3 bin/tnclaude
+```
+
+The `--tag` flag (or `TN_AI_CLI_TAG` env var) replaces the tag portion of the detected image, leaving the registry and repo path unchanged.
+
 **Image detection order** (first match wins):
 
-1. `TN_AI_CLI_IMAGE` env var
-2. `AI_CLI_IMAGE` env var
+1. `TN_AI_CLI_IMAGE` env var (full image reference including tag)
+2. `AI_CLI_IMAGE` env var (full image reference including tag)
 3. Local `docker-ai-cli-agents:latest` if present
 4. `ghcr.io/<github-owner>/docker-ai-cli-agents:latest` parsed from the git remote
 
@@ -124,8 +129,6 @@ The entrypoint always refreshes the Codex registration so that stale config from
 
 **Passing credentials with the wrapper scripts:**
 
-Export the variables before running the wrapper, or set them inline:
-
 ```bash
 export ODOO_URL=https://mycompany.odoo.com
 export ODOO_API_KEY=your-api-key-here
@@ -160,17 +163,28 @@ The credentials are written into `~/.claude` (Claude Code MCP config) and `~/.co
 ## Scripts
 
 - `scripts/run_with_truenas_mounts.sh` — run any mode with standard host mounts (used by `bin/tn*`)
-- `scripts/check_versions.sh` — compare `versions.json` against upstream versions
-- `scripts/update_versions.py` — update `versions.json` and optionally bump the repo release version
 - `scripts/smoke_test.sh` — lightweight local checks and optional container smoke tests
 
 ## Make targets
 
 | Target | Description |
 |---|---|
-| `make lint` | Run hadolint, shellcheck, yamllint, ruff, and smoke tests |
+| `make lint` | Run hadolint, shellcheck, yamllint, and smoke tests |
 | `make lint SMOKE_IMAGE=docker-ai-cli-agents:test` | Also run container smoke tests |
-| `make build` | Build the image with pinned versions from `versions.json` |
+| `make build` | Build the image (release version from latest git tag) |
 | `make build IMAGE=docker-ai-cli-agents:test` | Build with a custom tag |
-| `make check-versions` | Print upstream version report |
-| `make update-versions UPDATE_ARGS='--codex-version 1.2.3 --bump-release patch'` | Update `versions.json` |
+
+## Version management
+
+Tool versions are pinned in:
+
+- `package.json` — npm tools (`@anthropic-ai/claude-code`, `@openai/codex`, `ccusage`, `@ccusage/codex`)
+- `requirements.txt` — Python tools (`serena-agent`)
+
+Dependabot monitors both files weekly and raises PRs automatically. Dependabot PRs are auto-approved and auto-merged once CI (`make lint` + `make build`) passes. Each merge to master triggers a patch tag bump, which triggers a new image publish to GHCR.
+
+To pin or roll back to a specific release, use the image tag:
+
+```bash
+bin/tnclaude --tag v0.1.2
+```
