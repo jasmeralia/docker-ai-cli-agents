@@ -48,12 +48,16 @@ docker run --rm -it \
 Explicit modes:
 
 ```bash
-docker run --rm -it image --claude
-docker run --rm -it image --codex
+docker run --rm -it image --claude         # interactive, approval prompts enabled
+docker run --rm -it image --claude-yolo    # no prompts (--dangerously-skip-permissions)
+docker run --rm -it image --codex          # interactive, approval prompts enabled
+docker run --rm -it image --codex-yolo     # no prompts (--dangerously-bypass-approvals-and-sandbox)
 docker run --rm -it image --ccusage
 docker run --rm -it image --codexusage
 docker run --rm -it image --shell
 ```
+
+The standard `--claude` / `--codex` modes leave approval prompts enabled — appropriate when you are present or when the Docker socket is mounted (`SANDBOX_DOCKER=1`). The `--yolo` modes suppress all prompts; the `bin/tnclaude-yolo` and `bin/tncodex-yolo` wrappers also unset `SANDBOX_DOCKER` unconditionally to avoid combining unfettered agent access with host Docker access.
 
 Arguments after the mode selector are passed through to the selected CLI or shell.
 

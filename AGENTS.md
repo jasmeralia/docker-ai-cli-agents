@@ -70,11 +70,15 @@ The container entrypoint (`docker/entrypoint.sh`) selects a runtime mode via its
 
 | Flag | Runs |
 |---|---|
-| `--claude` | `claude --dangerously-skip-permissions` |
-| `--codex` | `codex --dangerously-bypass-approvals-and-sandbox` |
+| `--claude` | `claude` (permission prompts enabled) |
+| `--claude-yolo` | `claude --dangerously-skip-permissions` |
+| `--codex` | `codex` (approval prompts enabled) |
+| `--codex-yolo` | `codex --dangerously-bypass-approvals-and-sandbox` |
 | `--ccusage` | `ccusage` |
 | `--codexusage` | `ccusage-codex` |
 | `--shell` | `$SHELL` (bash) |
+
+The standard `--claude` / `--codex` modes leave approval prompts enabled — appropriate when the user is present or when the Docker socket is mounted. The `--yolo` modes suppress all prompts and are only used by `bin/tnclaude-yolo` / `bin/tncodex-yolo`, which also unset `SANDBOX_DOCKER` unconditionally.
 
 Arguments after the selector are passed to the chosen CLI.
 
