@@ -76,15 +76,6 @@ if [[ "${SANDBOX_DOCKER:-1}" != "0" ]] && [[ -S "/var/run/docker.sock" ]]; then
   docker_args+=(--mount "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock")
 fi
 
-# Pass through Odoo MCP env vars when set
-[[ -n "${ODOO_URL:-}" ]]      && docker_args+=(-e "ODOO_URL=${ODOO_URL}")
-[[ -n "${ODOO_API_KEY:-}" ]]  && docker_args+=(-e "ODOO_API_KEY=${ODOO_API_KEY}")
-[[ -n "${ODOO_USER:-}" ]]     && docker_args+=(-e "ODOO_USER=${ODOO_USER}")
-[[ -n "${ODOO_PASSWORD:-}" ]] && docker_args+=(-e "ODOO_PASSWORD=${ODOO_PASSWORD}")
-[[ -n "${ODOO_DB:-}" ]]       && docker_args+=(-e "ODOO_DB=${ODOO_DB}")
-[[ -n "${ODOO_LOCALE:-}" ]]   && docker_args+=(-e "ODOO_LOCALE=${ODOO_LOCALE}")
-[[ -n "${ODOO_YOLO:-}" ]]     && docker_args+=(-e "ODOO_YOLO=${ODOO_YOLO}")
-
 image_ref="$(detect_image)"
 
 exec docker run --rm "${tty_flags[@]}" \

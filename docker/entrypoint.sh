@@ -6,6 +6,7 @@ log_level="${AI_CLI_LOG_LEVEL:-info}"
 serena_bin="${SERENA_BIN:-/root/.local/bin/serena}"
 serena_project_cwd="${SERENA_PROJECT_CWD:-/workdir}"
 uvx_bin="${UVX_BIN:-/root/.local/bin/uvx}"
+codex_plugin_dir="${CODEX_PLUGIN_DIR:-/opt/claude-plugins/codex}"
 
 timestamp() {
   date +"%Y-%m-%dT%H:%M:%S%z"
@@ -110,76 +111,6 @@ enabled = true
 TOML
 }
 
-register_odoo_claude() {
-  if [[ -z "${ODOO_URL:-}" ]]; then
-    log DEBUG "ODOO_URL not set; skipping Odoo MCP registration for Claude Code"
-    return 0
-  fi
-  log INFO "registering Odoo MCP server with Claude Code (url: ${ODOO_URL})"
-  claude mcp remove --scope user odoo 2>/dev/null || true
-  local env_args=("--env" "ODOO_URL=${ODOO_URL}")
-  [[ -n "${ODOO_API_KEY:-}" ]]  && env_args+=(--env "ODOO_API_KEY=${ODOO_API_KEY}")
-  [[ -n "${ODOO_USER:-}" ]]     && env_args+=(--env "ODOO_USER=${ODOO_USER}")
-  [[ -n "${ODOO_PASSWORD:-}" ]] && env_args+=(--env "ODOO_PASSWORD=${ODOO_PASSWORD}")
-  [[ -n "${ODOO_DB:-}" ]]       && env_args+=(--env "ODOO_DB=${ODOO_DB}")
-  [[ -n "${ODOO_LOCALE:-}" ]]   && env_args+=(--env "ODOO_LOCALE=${ODOO_LOCALE}")
-  [[ -n "${ODOO_YOLO:-}" ]]     && env_args+=(--env "ODOO_YOLO=${ODOO_YOLO}")
-  claude mcp add --scope user "${env_args[@]}" odoo -- \
-    "${uvx_bin}" mcp-server-odoo \
-    2>/dev/null || log INFO "claude mcp add unavailable; skipping"
-}
-
-remove_codex_odoo_config() {
-  local codex_config="$1"
-  local tmp_config
-  [[ -f "${codex_config}" ]] || return 0
-
-  tmp_config="$(mktemp "${codex_config}.XXXXXX")"
-  awk '
-    /^\[/ {
-      header = $0
-      gsub(/[[:space:]]/, "", header)
-      gsub(/["'"'"']/, "", header)
-      if (header ~ /^\[mcp_servers\.odoo]/ || header ~ /^\[mcp_servers\.odoo\./) {
-        skip = 1
-        next
-      }
-      skip = 0
-    }
-    !skip { print }
-  ' "${codex_config}" > "${tmp_config}"
-  mv "${tmp_config}" "${codex_config}"
-}
-
-register_odoo_codex() {
-  if [[ -z "${ODOO_URL:-}" ]]; then
-    log DEBUG "ODOO_URL not set; skipping Odoo MCP registration for Codex"
-    return 0
-  fi
-  local codex_config="${HOME}/.codex/config.toml"
-  ensure_dir "${HOME}/.codex"
-  log INFO "registering Odoo MCP server with Codex (url: ${ODOO_URL})"
-  remove_codex_odoo_config "${codex_config}"
-  cat >> "${codex_config}" <<TOML
-
-[mcp_servers.odoo]
-command = "${uvx_bin}"
-args = ["mcp-server-odoo"]
-startup_timeout_sec = 30
-tool_timeout_sec = 120
-enabled = true
-
-[mcp_servers.odoo.env]
-ODOO_URL = "${ODOO_URL}"
-TOML
-  [[ -n "${ODOO_API_KEY:-}" ]]  && printf 'ODOO_API_KEY = "%s"\n'  "${ODOO_API_KEY}"  >> "${codex_config}"
-  [[ -n "${ODOO_USER:-}" ]]     && printf 'ODOO_USER = "%s"\n'     "${ODOO_USER}"     >> "${codex_config}"
-  [[ -n "${ODOO_PASSWORD:-}" ]] && printf 'ODOO_PASSWORD = "%s"\n' "${ODOO_PASSWORD}" >> "${codex_config}"
-  [[ -n "${ODOO_DB:-}" ]]       && printf 'ODOO_DB = "%s"\n'       "${ODOO_DB}"       >> "${codex_config}"
-  [[ -n "${ODOO_LOCALE:-}" ]]   && printf 'ODOO_LOCALE = "%s"\n'   "${ODOO_LOCALE}"   >> "${codex_config}"
-  [[ -n "${ODOO_YOLO:-}" ]]     && printf 'ODOO_YOLO = "%s"\n'     "${ODOO_YOLO}"     >> "${codex_config}"
-}
-
 run_mode="--claude"
 if [[ $# -gt 0 ]]; then
   run_mode="$1"
@@ -203,18 +134,16 @@ ensure_dir "${HOME}/.codex"
 
 register_serena_claude
 register_serena_codex
-register_odoo_claude
-register_odoo_codex
 
 case "${run_mode}" in
   --claude)
-    exec claude "$@"
+    exec claude --plugin-dir "${codex_plugin_dir}" "$@"
     ;;
   --claude-safe)
-    exec claude --permission-mode acceptEdits "$@"
+    exec claude --plugin-dir "${codex_plugin_dir}" --permission-mode acceptEdits "$@"
     ;;
   --claude-yolo)
-    exec claude --dangerously-skip-permissions "$@"
+    exec claude --plugin-dir "${codex_plugin_dir}" --dangerously-skip-permissions "$@"
     ;;
   --codex)
     exec codex "$@"

@@ -62,6 +62,14 @@ COPY package*.json /opt/npm-tools/
 RUN npm ci --prefix /opt/npm-tools
 ENV PATH="/opt/npm-tools/node_modules/.bin:${PATH}"
 
+# Install Codex plugin for Claude Code; loaded via --plugin-dir to avoid
+# path conflicts with the host ~/.claude bind mount.
+ARG CODEX_PLUGIN_CC_SHA=807e03ac9d5aa23bc395fdec8c3767500a86b3cf
+RUN mkdir -p /opt/claude-plugins/codex \
+    && curl -fsSL "https://github.com/openai/codex-plugin-cc/archive/${CODEX_PLUGIN_CC_SHA}.tar.gz" \
+      | tar -xzf - --strip-components=1 -C /opt/claude-plugins/codex
+ENV CODEX_PLUGIN_DIR=/opt/claude-plugins/codex
+
 COPY docker/entrypoint.sh /usr/local/bin/ai-cli-entrypoint
 RUN chmod +x /usr/local/bin/ai-cli-entrypoint
 

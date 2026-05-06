@@ -105,13 +105,13 @@ The Serena project config for this repo lives in `.serena/project.yml`.
 
 ### Odoo MCP
 
-Run via `uvx mcp-server-odoo` (uvx at `/root/.local/bin/uvx`, env var `UVX_BIN`). No pre-installation needed — `uvx` fetches and runs the package on demand.
+Run via `uvx mcp-server-odoo` (uvx at `/root/.local/bin/uvx`, env var `UVX_BIN`). No pre-installation needed.
 
-Registration is conditional on `ODOO_URL` being set. The following env vars are passed through from the host to the container by `scripts/run_with_truenas_mounts.sh` when set:
+Not injected by the entrypoint. Configure once on the host in `~/.codex/config.toml` (Codex) or via `claude mcp add --scope user` (Claude Code). Because both config locations are bind-mounted, the registration persists across container runs without any per-run credential passing.
 
-`ODOO_URL`, `ODOO_API_KEY`, `ODOO_USER`, `ODOO_PASSWORD`, `ODOO_DB`, `ODOO_LOCALE`, `ODOO_YOLO`
+### Codex plugin for Claude Code
 
-The Odoo registration is always fully refreshed on each container start (remove + re-add for Claude Code, rewrite for Codex config.toml) so changing credentials takes effect immediately on the next invocation.
+The [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) plugin is cloned into the image at build time (pinned to `CODEX_PLUGIN_CC_SHA`) and loaded via `--plugin-dir ${CODEX_PLUGIN_DIR}` for all Claude Code entrypoint modes. This avoids path conflicts with the host `~/.claude` bind mount, where the plugin may also be installed with different absolute paths. The plugin provides `/codex:*` slash commands inside Claude Code sessions.
 
 ---
 

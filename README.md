@@ -140,67 +140,45 @@ gh auth status
 
 ## MCP servers
 
-Both agents have MCP servers registered automatically by the entrypoint on every container start.
-
 ### Serena (always active)
 
-[Serena](https://github.com/oraios/serena) provides code-intelligence tools (symbol search, semantic editing, diagnostics). It is registered unconditionally for both Claude Code and Codex on every start. No configuration is required.
+[Serena](https://github.com/oraios/serena) provides code-intelligence tools (symbol search, semantic editing, diagnostics). It is registered unconditionally for both Claude Code and Codex on every container start. No configuration required.
 
-The entrypoint always refreshes the Codex registration so that stale config from previous container versions is repaired automatically.
+### Odoo (manual host configuration)
 
-### Odoo (conditional on `ODOO_URL`)
+[Odoo MCP](https://github.com/ivnvxd/mcp-server-odoo) is not injected by the entrypoint. Configure it once directly on the host in the bind-mounted config files — it will be available in every subsequent container run.
 
-[Odoo MCP](https://github.com/ivnvxd/mcp-server-odoo) connects to an Odoo ERP instance and exposes tools for searching, reading, creating, and updating records. It is registered only when `ODOO_URL` is set in the container environment.
+**For Codex** — add to `~/.codex/config.toml`:
 
-**Required variables** (`ODOO_URL` plus one authentication option):
+```toml
+[mcp_servers.odoo]
+command = "uvx"
+args = ["mcp-server-odoo"]
+startup_timeout_sec = 30
+tool_timeout_sec = 120
+enabled = true
 
-| Variable | Description |
-|---|---|
-| `ODOO_URL` | Odoo instance URL, e.g. `https://mycompany.odoo.com` |
-| `ODOO_API_KEY` | API key (preferred) |
-| `ODOO_USER` | Username (alternative to API key) |
-| `ODOO_PASSWORD` | Password (required with `ODOO_USER`) |
-
-**Optional variables:**
-
-| Variable | Description |
-|---|---|
-| `ODOO_DB` | Database name (auto-detected if omitted; required when listing is restricted) |
-| `ODOO_LOCALE` | Response locale, e.g. `fr_FR` |
-| `ODOO_YOLO` | `read` or `true` — bypasses MCP module requirement (dev/testing only) |
-
-**Passing credentials with the wrapper scripts:**
-
-```bash
-export ODOO_URL=https://mycompany.odoo.com
-export ODOO_API_KEY=your-api-key-here
-export ODOO_DB=mycompany
-bin/tnclaude
+[mcp_servers.odoo.env]
+ODOO_URL = "https://mycompany.odoo.com"
+ODOO_API_KEY = "your-api-key-here"
+# ODOO_DB = "mycompany"       # required only when db listing is restricted
+# ODOO_LOCALE = "fr_FR"
 ```
 
-```bash
-ODOO_URL=https://mycompany.odoo.com ODOO_API_KEY=your-key bin/tncodex
-```
-
-**Passing credentials with `docker run` directly:**
+**For Claude Code** — run once on the host:
 
 ```bash
-docker run --rm -it \
-  --mount type=bind,src="$(pwd)",dst=/workdir \
-  --mount type=bind,src="${HOME}/.claude",dst=/root/.claude \
-  --mount type=bind,src="${HOME}/.claude.json",dst=/root/.claude.json \
-  --mount type=bind,src="${HOME}/.codex",dst=/root/.codex \
-  --workdir /workdir \
-  -e HOME=/root \
-  -e ODOO_URL=https://mycompany.odoo.com \
-  -e ODOO_API_KEY=your-api-key-here \
-  -e ODOO_DB=mycompany \
-  ghcr.io/<owner>/docker-ai-cli-agents:latest --claude
+claude mcp add --scope user \
+  --env ODOO_URL=https://mycompany.odoo.com \
+  --env ODOO_API_KEY=your-api-key-here \
+  odoo -- uvx mcp-server-odoo
 ```
 
-The credentials are written into `~/.claude` (Claude Code MCP config) and `~/.codex/config.toml` (Codex MCP config) inside the container. Because these directories are bind-mounted from the host, the registration persists across runs. On each new start the Odoo registration is always refreshed, so changing credentials takes effect immediately on the next container invocation.
+> **Security note:** Credentials are stored in `~/.claude` and `~/.codex` on the host filesystem. Restrict permissions on those directories and avoid committing them to version control.
 
-> **Security note:** Odoo credentials are stored in `~/.claude` and `~/.codex` on the host filesystem. Restrict permissions on those directories accordingly and avoid committing them to version control.
+## Claude Code plugin: Codex
+
+The [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) plugin is baked into the image and loaded automatically for all Claude Code modes via `--plugin-dir`. It provides `/codex:*` slash commands that let Claude delegate tasks to and review code with Codex directly from a Claude Code session.
 
 ## Scripts
 
