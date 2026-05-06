@@ -63,7 +63,7 @@ Arguments after the mode selector are passed through to the selected CLI or shel
 
 ## Wrapper scripts
 
-The `bin/` directory contains `tnclaude`, `tncodex`, `tnccusage`, and `tncodexusage`. These are thin wrappers around `scripts/run_with_truenas_mounts.sh` that:
+The `bin/` directory contains thin wrappers around `scripts/run_with_truenas_mounts.sh` that:
 
 - Bind-mount the current host directory to `/workdir`
 - Bind-mount `~/.claude`, `~/.claude.json`, `~/.codex`, and `~/.config/gh` from the host so config and auth persist between container runs
