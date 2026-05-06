@@ -58,48 +58,14 @@ register_serena_claude() {
   fi
 }
 
-remove_codex_serena_config() {
-  local codex_config="$1"
-  local tmp_config
-  [[ -f "${codex_config}" ]] || return 0
-
-  tmp_config="$(mktemp "${codex_config}.XXXXXX")"
-  awk '
-    /^\[/ {
-      header = $0
-      gsub(/[[:space:]]/, "", header)
-      gsub(/["'\'']/, "", header)
-      if (header == "[mcp_servers.serena]") {
-        skip = 1
-        next
-      }
-      skip = 0
-    }
-    !skip { print }
-  ' "${codex_config}" > "${tmp_config}"
-  mv "${tmp_config}" "${codex_config}"
-}
-
-
 register_serena_codex() {
   local codex_config="${HOME}/.codex/config.toml"
   ensure_dir "${HOME}/.codex"
-  if [[ -f "${codex_config}" ]] && awk '
-    /^\[/ {
-      header = $0
-      gsub(/[[:space:]]/, "", header)
-      gsub(/["'\'']/, "", header)
-      if (header == "[mcp_servers.serena]") {
-        found = 1
-      }
-    }
-    END { exit found ? 0 : 1 }
-  ' "${codex_config}"; then
-    log INFO "refreshing Serena MCP server registration with Codex"
-    remove_codex_serena_config "${codex_config}"
-  else
-    log INFO "registering Serena MCP server with Codex"
+  if [[ -f "${codex_config}" ]] && grep -q '^\[mcp_servers\.serena\]' "${codex_config}"; then
+    log DEBUG "Serena already registered with Codex"
+    return 0
   fi
+  log INFO "registering Serena MCP server with Codex"
   cat >> "${codex_config}" <<TOML
 
 [mcp_servers.serena]

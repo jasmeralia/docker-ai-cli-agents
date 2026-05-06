@@ -89,7 +89,7 @@ On startup the entrypoint:
 1. Logs versions of all installed tools
 2. Ensures `~/.claude` and `~/.codex` exist
 3. Registers Serena MCP with Claude Code (if not already registered)
-4. Always refreshes the Serena MCP registration in Codex config
+4. Registers Serena MCP with Codex (if not already registered)
 
 `.mcp.json` servers are **not** auto-registered into the Codex global config on startup. Use `--register-mcp-json` explicitly when you want to sync them (see MCP Servers section).
 
