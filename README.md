@@ -152,6 +152,20 @@ gh auth login --with-token <<< "github_pat_..."
 
 [Serena](https://github.com/oraios/serena) provides code-intelligence tools (symbol search, semantic editing, diagnostics). It is registered unconditionally for both Claude Code and Codex on every container start. No configuration required.
 
+Serena uses [solidlsp](https://github.com/oraios/solidlsp) to drive language servers. Whether a given language works depends on what's available in the image:
+
+**Works out of the box** — LSP binary is auto-downloaded or provided by Node/Python already in the image:
+- Bash/shell (`bash-language-server` via npm)
+- TypeScript / JavaScript (`typescript-language-server` via npm)
+- Python (pyright, auto-downloaded; or jedi/ty if pre-installed)
+- JSON, YAML, TOML (auto-downloaded LSPs)
+- Terraform, Vue, and others with npm-distributed LSPs
+
+**Requires adding the runtime to the image** — Serena knows how to drive these LSPs but the compiler/toolchain is not included:
+- Go (needs `gopls`), Rust (needs `rust-analyzer`), Java/Kotlin (needs JDK + jdtls), Ruby, C/C++ (clangd), and most other compiled languages
+
+To add a language, install its toolchain in the Dockerfile and verify Serena can find the LSP binary at `/workdir` startup.
+
 ### Project `.mcp.json` (Codex manual registration)
 
 Claude Code natively loads `.mcp.json` from the project root. Codex has no equivalent — its MCP config is global (`~/.codex/config.toml`). The image includes a helper script to bridge the gap when you intentionally want to sync a project's `.mcp.json` into the Codex global config:

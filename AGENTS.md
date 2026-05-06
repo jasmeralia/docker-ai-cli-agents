@@ -105,6 +105,13 @@ Registered for Claude Code with `--context=claude-code` and for Codex with `--co
 
 The Serena project config for this repo lives in `.serena/project.yml`.
 
+**LSP support** — Serena uses [solidlsp](https://github.com/oraios/solidlsp) to drive language servers. Two categories:
+
+- *Auto-installs the LSP*: bash (`bash-language-server` via npm), TypeScript/JS, Python (pyright), JSON, YAML, TOML, Terraform, Vue, and other npm-distributed LSPs. These work out of the box because Node 20 and npm are in the image.
+- *Requires pre-installed runtime*: Go (gopls), Rust (rust-analyzer), Java/Kotlin (jdtls), Ruby, C/C++ (clangd), and most compiled languages. Serena can drive these LSPs but the toolchain must be added to the Dockerfile first.
+
+The image currently includes Node 20 + npm and Python 3.11, so bash, TypeScript/JavaScript, Python, and the data-format LSPs work without any changes.
+
 ### Odoo MCP
 
 Run via `uvx mcp-server-odoo` (uvx at `/root/.local/bin/uvx`, env var `UVX_BIN`). No pre-installation needed.
