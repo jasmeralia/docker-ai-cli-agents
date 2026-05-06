@@ -80,7 +80,7 @@ The container entrypoint (`docker/entrypoint.sh`) selects a runtime mode via its
 | `--codexusage` | `ccusage-codex` |
 | `--shell` | `$SHELL` (bash) |
 
-The Docker socket is mounted by default in all non-yolo modes (when `/var/run/docker.sock` exists). Set `SANDBOX_DOCKER=0` to disable. The `-yolo` scripts always set `SANDBOX_DOCKER=0` to prevent combining unfettered agent access with host Docker access.
+The Docker socket is mounted by default (when `/var/run/docker.sock` exists). Set `SANDBOX_DOCKER=0` to disable. The `-yolo` scripts always set `SANDBOX_DOCKER=0` to prevent combining unfettered agent access with host Docker access.
 
 Arguments after the selector are passed to the chosen CLI.
 
@@ -132,11 +132,9 @@ Serena (`serena`) is installed via `uv tool install` from `requirements.txt`. Th
 
 ## Wrapper Scripts
 
-`bin/tnclaude`, `bin/tncodex`, `bin/tnccusage`, `bin/tncodexusage` — thin wrappers around `scripts/run_with_truenas_mounts.sh`. Mounts the Docker socket by default (when present). All prompts enabled.
+`bin/tnclaude`, `bin/tncodex`, `bin/tnccusage`, `bin/tncodexusage` — thin wrappers around `scripts/run_with_truenas_mounts.sh`. Mount the Docker socket by default (when present). Claude auto-approves file edits but prompts for shell commands; Codex auto-approves only trusted read-only commands and prompts for everything else.
 
-`bin/tnclaude-safe`, `bin/tncodex-safe` — same mount behaviour (socket on by default), but runs the agent in a restricted-autonomy mode: Claude auto-approves file edits but prompts for all shell commands; Codex auto-approves only trusted read-only commands and prompts for everything else.
-
-`bin/tnclaude-yolo`, `bin/tncodex-yolo` — sets `SANDBOX_DOCKER=0` unconditionally (no Docker socket) and suppresses all prompts. Intended for fully-autonomous delegation where host Docker access is not needed.
+`bin/tnclaude-yolo`, `bin/tncodex-yolo` — set `SANDBOX_DOCKER=0` unconditionally (no Docker socket) and suppress all prompts. Intended for fully-autonomous delegation where host Docker access is not needed.
 
 `scripts/run_with_truenas_mounts.sh` accepts `--tag <image-tag>` after the mode selector to override the image tag. The `TN_AI_CLI_TAG` env var does the same.
 

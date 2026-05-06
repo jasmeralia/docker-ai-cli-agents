@@ -48,12 +48,12 @@ docker run --rm -it \
 Explicit modes:
 
 ```bash
-docker run --rm -it image --claude         # all prompts enabled
 docker run --rm -it image --claude-safe    # file edits auto-approved; shell commands prompted
 docker run --rm -it image --claude-yolo    # no prompts (--dangerously-skip-permissions)
-docker run --rm -it image --codex          # all prompts enabled
 docker run --rm -it image --codex-safe     # trusted read-only commands auto-approved; others prompted
 docker run --rm -it image --codex-yolo     # no prompts (--dangerously-bypass-approvals-and-sandbox)
+docker run --rm -it image --claude         # fully prompted (all operations require approval)
+docker run --rm -it image --codex          # fully prompted (all operations require approval)
 docker run --rm -it image --ccusage
 docker run --rm -it image --codexusage
 docker run --rm -it image --shell
@@ -73,17 +73,15 @@ The `bin/` directory contains `tnclaude`, `tncodex`, `tnccusage`, and `tncodexus
 - Forward all arguments to the selected mode
 
 ```bash
-bin/tnclaude          # all prompts; socket mounted by default
-bin/tnclaude-safe     # file edits auto-approved, shell commands prompted; socket mounted
+bin/tnclaude          # file edits auto-approved, shell commands prompted; socket mounted by default
 bin/tnclaude-yolo     # no prompts; socket never mounted
-bin/tncodex           # all prompts; socket mounted by default
-bin/tncodex-safe      # trusted read-only commands auto-approved, others prompted; socket mounted
+bin/tncodex           # trusted read-only commands auto-approved, others prompted; socket mounted by default
 bin/tncodex-yolo      # no prompts; socket never mounted
 bin/tnccusage --help
 bin/tncodexusage --help
 ```
 
-The Docker socket (`/var/run/docker.sock`) is mounted by default in all non-yolo scripts when it exists on the host. Set `SANDBOX_DOCKER=0` to disable for a single run. The `-yolo` scripts hard-disable the socket and suppress all prompts — use them for fully-autonomous delegation where Docker access is not needed.
+The Docker socket (`/var/run/docker.sock`) is mounted by default when it exists on the host. Set `SANDBOX_DOCKER=0` to disable for a single run. The `-yolo` scripts hard-disable the socket and suppress all prompts — use them for fully-autonomous delegation where Docker access is not needed.
 
 To call without `bin/`, add the repo root or `bin/` to your `PATH`, or symlink the scripts into a directory already on your `PATH`.
 
