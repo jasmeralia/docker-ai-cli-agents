@@ -73,6 +73,15 @@ bin/tnccusage --help
 bin/tncodexusage --help
 ```
 
+**Yolo (autonomous) variants** — same as above but explicitly without the Docker socket mount, for safe fully-autonomous delegation:
+
+```bash
+bin/tnclaude-yolo
+bin/tncodex-yolo
+```
+
+The `-yolo` scripts unset `SANDBOX_DOCKER` regardless of the environment, so the agent cannot reach the host Docker daemon. The agents still run with permission/approval prompts suppressed (same as the standard scripts). Use these when you want to delegate a task fully without needing external Docker access.
+
 To call without `bin/`, add the repo root or `bin/` to your `PATH`, or symlink the scripts into a directory already on your `PATH`.
 
 **Image tag override** — run a specific release instead of `latest`:

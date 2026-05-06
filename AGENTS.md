@@ -128,6 +128,8 @@ Serena (`serena`) is installed via `uv tool install` from `requirements.txt`. Th
 
 `bin/tnclaude`, `bin/tncodex`, `bin/tnccusage`, `bin/tncodexusage` — thin wrappers around `scripts/run_with_truenas_mounts.sh`. Each passes the appropriate mode flag and forwards remaining arguments.
 
+`bin/tnclaude-yolo`, `bin/tncodex-yolo` — same as above but unset `SANDBOX_DOCKER` unconditionally, ensuring the Docker socket is never mounted. Intended for fully-autonomous delegation where host Docker access is not needed and maximum agent isolation is preferred.
+
 `scripts/run_with_truenas_mounts.sh` accepts `--tag <image-tag>` after the mode selector to override the image tag. The `TN_AI_CLI_TAG` env var does the same.
 
 Image auto-detection order: `TN_AI_CLI_IMAGE` → `AI_CLI_IMAGE` → local `docker-ai-cli-agents:latest` → `ghcr.io/<github-owner>/docker-ai-cli-agents:latest` from git remote.
