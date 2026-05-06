@@ -42,7 +42,7 @@ Tool versions are tracked in two manifest files:
 - `package.json` / `package-lock.json` — npm tools: `@anthropic-ai/claude-code`, `@openai/codex`, `ccusage`, `@ccusage/codex`
 - `requirements.txt` — Python tools: `serena-agent`
 
-Dependabot monitors both files (npm and pip ecosystems) and raises PRs automatically. PRs from `dependabot[bot]` are auto-approved and auto-merged once CI passes. Each merge to master triggers the auto-tag workflow, which bumps the patch version and pushes a `v*` tag, which triggers the publish workflow to build and push the Docker image.
+Dependabot monitors both files (npm and pip ecosystems) and raises PRs automatically. PRs from `dependabot[bot]` are auto-approved and auto-merged once CI passes. Each merge to master triggers the tag-and-publish workflow, which bumps the patch version, pushes a `v*` tag, then immediately builds and pushes the Docker image to GHCR — all in one job to avoid the GitHub Actions limitation where `GITHUB_TOKEN`-pushed tags cannot trigger separate workflows.
 
 The release version is derived from the latest git tag at build time — no separate `versions.json` is needed.
 
@@ -169,9 +169,7 @@ Startup logs include: runtime mode, working directory, HOME, all tool versions, 
 
 **ci** workflow runs `make lint` and `make build` on every PR to master, acting as the CI gate for auto-merge.
 
-**auto-tag** workflow triggers on every push to master: bumps the patch version of the latest semver tag and pushes a new `v*` tag.
-
-**publish** workflow triggers on `v*` tag push: builds the image, tags it `latest` and `<tag>`, and pushes to `ghcr.io/<owner>/docker-ai-cli-agents`. The release version is derived from the git tag (`GITHUB_REF_NAME` with `v` prefix stripped).
+**tag-and-publish** workflow triggers on every push to master: bumps the patch version, pushes the `v*` tag, then builds and pushes the image to `ghcr.io/<owner>/docker-ai-cli-agents` tagged `latest` and `<version>`. Combined into one job because `GITHUB_TOKEN`-pushed tags cannot trigger separate workflow runs.
 
 ---
 
