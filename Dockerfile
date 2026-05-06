@@ -1,4 +1,4 @@
-FROM node:20
+FROM node:25
 
 # hadolint ignore=DL3002
 USER root
