@@ -60,7 +60,7 @@ docker run --rm -it image --codexusage
 docker run --rm -it image --shell
 ```
 
-The Docker socket is mounted by default in all non-yolo modes (when `/var/run/docker.sock` exists on the host). Set `SANDBOX_DOCKER=0` to disable. The `-yolo` scripts always disable the socket and suppress all prompts. The `-safe` scripts keep the socket but restrict autonomy — shell commands (including Docker calls) still require approval.
+The Docker socket is mounted by default in all non-yolo modes (when `/var/run/docker.sock` exists on the host). Set `SANDBOX_DOCKER=0` to disable. The `-yolo` scripts always disable the socket and suppress all prompts.
 
 Arguments after the mode selector are passed through to the selected CLI or shell.
 
@@ -104,8 +104,39 @@ The `--tag` flag (or `TN_AI_CLI_TAG` env var) replaces the tag portion of the de
 
 **Optional flags:**
 
-- `SANDBOX_DOCKER=1` — also mounts `/var/run/docker.sock` into the container
+- `SANDBOX_DOCKER=0` — disables the Docker socket mount (mounted by default when present)
 - `AI_CLI_LOG_LEVEL=debug` — enables verbose startup logging
+
+## GitHub authentication
+
+`~/.config/gh` is bind-mounted into all container modes, giving the agent access to the host GitHub CLI auth token. In yolo modes this is unsandboxed — the agent can use `gh` without prompts to read or write any resource the token allows.
+
+**Recommended mitigation: use a fine-grained PAT with narrow scope.**
+
+Create a fine-grained personal access token at [github.com/settings/tokens](https://github.com/settings/tokens) with the following repository permissions. Granting **Contents: Read only** (not Write) is the critical constraint — PR merges require Contents write, so this blocks the agent from merging while leaving PR creation and editing intact.
+
+| Permission | Level | Effect |
+|---|---|---|
+| Metadata | Read | Required; repository metadata |
+| Contents | **Read only** | Read code; blocks pushes and merges |
+| Pull requests | Read and write | Create, edit, review, comment on PRs |
+| Issues | Read and write | Read and comment on issues |
+| Actions | Read | Check CI/workflow status |
+| Commit statuses | Read | Check PR status checks |
+
+Authenticate with the fine-grained token:
+
+```bash
+gh auth login --with-token <<< "github_pat_..."
+# or interactively:
+gh auth login
+```
+
+Verify the active token and its scopes:
+
+```bash
+gh auth status
+```
 
 ## MCP servers
 
