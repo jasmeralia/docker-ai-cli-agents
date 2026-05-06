@@ -144,6 +144,10 @@ gh auth status
 
 [Serena](https://github.com/oraios/serena) provides code-intelligence tools (symbol search, semantic editing, diagnostics). It is registered unconditionally for both Claude Code and Codex on every container start. No configuration required.
 
+### Project `.mcp.json` (Codex auto-registration)
+
+Claude Code natively loads `.mcp.json` from the project root. The entrypoint extends this to Codex: if `/workdir/.mcp.json` exists, each server defined under `mcpServers` is registered in `~/.codex/config.toml` on every container start. Existing entries for the same server names are replaced, so config changes are picked up automatically without manual editing.
+
 ### Odoo (manual host configuration)
 
 [Odoo MCP](https://github.com/ivnvxd/mcp-server-odoo) is not injected by the entrypoint. Configure it once directly on the host in the bind-mounted config files — it will be available in every subsequent container run.

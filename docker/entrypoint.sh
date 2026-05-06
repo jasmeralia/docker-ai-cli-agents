@@ -80,6 +80,19 @@ remove_codex_serena_config() {
   mv "${tmp_config}" "${codex_config}"
 }
 
+register_mcp_json_codex() {
+  local mcp_json="${serena_project_cwd}/.mcp.json"
+  if [[ ! -f "${mcp_json}" ]]; then
+    log DEBUG ".mcp.json not found in workspace; skipping"
+    return 0
+  fi
+  ensure_dir "${HOME}/.codex"
+  log INFO "registering MCPs from .mcp.json with Codex"
+  python3 /usr/local/bin/register-mcp-json "${mcp_json}" "${HOME}/.codex/config.toml" 2>&1 \
+    | while IFS= read -r line; do log INFO "${line}"; done \
+    || log INFO "MCP JSON registration failed; skipping"
+}
+
 register_serena_codex() {
   local codex_config="${HOME}/.codex/config.toml"
   ensure_dir "${HOME}/.codex"
@@ -134,6 +147,7 @@ ensure_dir "${HOME}/.codex"
 
 register_serena_claude
 register_serena_codex
+register_mcp_json_codex
 
 case "${run_mode}" in
   --claude)

@@ -71,7 +71,8 @@ RUN mkdir -p /opt/claude-plugins/codex \
 ENV CODEX_PLUGIN_DIR=/opt/claude-plugins/codex
 
 COPY docker/entrypoint.sh /usr/local/bin/ai-cli-entrypoint
-RUN chmod +x /usr/local/bin/ai-cli-entrypoint
+COPY docker/register_mcp_json.py /usr/local/bin/register-mcp-json
+RUN chmod +x /usr/local/bin/ai-cli-entrypoint /usr/local/bin/register-mcp-json
 
 ENV AI_CLI_LOG_LEVEL=info
 WORKDIR /workdir

@@ -89,7 +89,7 @@ On startup the entrypoint:
 2. Ensures `~/.claude` and `~/.codex` exist
 3. Registers Serena MCP with Claude Code (if not already registered)
 4. Always refreshes the Serena MCP registration in Codex config
-5. If `ODOO_URL` is set: registers Odoo MCP with Claude Code (always refreshes) and Codex (always refreshes)
+5. If `/workdir/.mcp.json` exists: registers each MCP server defined there with Codex (strips and re-adds on every start so config changes are picked up)
 
 ---
 
