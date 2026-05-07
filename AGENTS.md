@@ -33,6 +33,8 @@ Primary goals:
 
 Matches Anthropic's own devcontainer base. All npm tools (Claude Code, Codex, ccusage, ccusage-codex) are installed from `package.json` via `npm ci --prefix /opt/npm-tools` for reproducible builds. Dependabot tracks the npm ecosystem and raises PRs when new versions are available.
 
+The image also installs common development and debugging packages: `build-essential`, `ca-certificates`, `curl`, `docker.io`, `fd-find`, `file`, `git`, `jq`, `less`, `procps`, `python3`, `python3-pip`, `python3-venv`, `ripgrep`, `sqlite3`, `tree`, `wget`, `xz-utils`, and `yq`.
+
 ---
 
 ## Version Management
