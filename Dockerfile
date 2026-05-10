@@ -64,9 +64,12 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin s
 # Install Serena MCP server from pinned version in requirements.txt;
 # tool venv goes to /opt/uv-tools and the wrapper binary to /usr/local/bin.
 COPY requirements.txt /tmp/requirements.txt
-RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin \
+# UV_PYTHON_INSTALL_DIR keeps the downloaded Python 3.13 interpreter out of
+# /root/.local (unreachable by non-root users) and into /opt/uv-python so
+# the venv symlink target is world-executable.
+RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin UV_PYTHON_INSTALL_DIR=/opt/uv-python \
     uv tool install -p 3.13 "$(grep '^serena-agent' /tmp/requirements.txt | head -1)" --prerelease=allow \
-    && chmod -R a+rX /opt/uv-tools \
+    && chmod -R a+rX /opt/uv-tools /opt/uv-python \
     && test -x "${SERENA_BIN}" \
     && test -x "${UVX_BIN}"
 
