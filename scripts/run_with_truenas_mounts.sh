@@ -27,11 +27,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-workspace_dir="$(pwd -P)"
-host_claude_dir="${HOME}/.claude"
-host_claude_config="${HOME}/.claude.json"
-host_codex_dir="${HOME}/.codex"
-host_gh_dir="${HOME}/.config/gh"
+host_user="$(id -un)"
+host_uid="$(id -u)"
+host_gid="$(id -g)"
+host_home="${HOME}"
+host_cwd="$(pwd -P)"
 
 detect_image() {
   local base_image
@@ -66,14 +66,25 @@ if [[ -t 0 && -t 1 ]]; then
   tty_flags=(-it)
 fi
 
-mkdir -p "${host_claude_dir}" "${host_codex_dir}" "${host_gh_dir}"
-touch "${host_claude_config}"
+# Build mount list: $HOME at its host path, /mnt if present, Docker socket if enabled.
+# When the cwd falls outside both, bind it at its exact host path as a fallback.
+mount_args=(--mount "type=bind,src=${host_home},dst=${host_home}")
 
-docker_args=()
+if [[ -d "/mnt" ]]; then
+  mount_args+=(--mount "type=bind,src=/mnt,dst=/mnt")
+fi
+
+case "${host_cwd}" in
+  "${host_home}" | "${host_home}/"* | "/mnt" | "/mnt/"*)
+    : ;;  # already covered by the $HOME or /mnt mount
+  *)
+    mount_args+=(--mount "type=bind,src=${host_cwd},dst=${host_cwd}") ;;
+esac
+
 # Mount the Docker socket by default; set SANDBOX_DOCKER=0 to disable.
 # The -yolo scripts set this explicitly so the agent cannot reach host Docker.
 if [[ "${SANDBOX_DOCKER:-1}" != "0" ]] && [[ -S "/var/run/docker.sock" ]]; then
-  docker_args+=(--mount "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock")
+  mount_args+=(--mount "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock")
 fi
 
 image_ref="$(detect_image)"
@@ -85,14 +96,13 @@ if [[ -z "${tag_override}" ]]; then
 fi
 
 exec docker run --rm "${pull_flag}" "${tty_flags[@]}" \
-  --mount "type=bind,src=${workspace_dir},dst=/workdir" \
-  --mount "type=bind,src=${host_claude_dir},dst=/root/.claude" \
-  --mount "type=bind,src=${host_claude_config},dst=/root/.claude.json" \
-  --mount "type=bind,src=${host_codex_dir},dst=/root/.codex" \
-  --mount "type=bind,src=${host_gh_dir},dst=/root/.config/gh" \
-  "${docker_args[@]}" \
-  --workdir /workdir \
-  -e "HOME=/root" \
+  "${mount_args[@]}" \
+  -e "HOST_USER=${host_user}" \
+  -e "HOST_UID=${host_uid}" \
+  -e "HOST_GID=${host_gid}" \
+  -e "HOST_HOME=${host_home}" \
+  -e "HOST_CWD=${host_cwd}" \
+  -e "HOME=${host_home}" \
   -e "AI_CLI_LOG_LEVEL=${AI_CLI_LOG_LEVEL:-info}" \
   "${image_ref}" \
   "${mode}" "${container_args[@]}"

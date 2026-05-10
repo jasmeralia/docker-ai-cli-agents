@@ -29,6 +29,7 @@ RUN apt-get update \
         fd-find \
         file \
         git \
+        gosu \
         jq \
         less \
         procps \
@@ -37,6 +38,7 @@ RUN apt-get update \
         python3-venv \
         ripgrep \
         sqlite3 \
+        sudo \
         tree \
         wget \
         xz-utils \
@@ -54,15 +56,17 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for Serena and Odoo MCP
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV SERENA_BIN=/root/.local/bin/serena
-ENV UVX_BIN=/root/.local/bin/uvx
-ENV PATH="/root/.local/bin:${PATH}"
+# Install uv to /usr/local/bin so it is accessible to any runtime user
+ENV SERENA_BIN=/usr/local/bin/serena \
+    UVX_BIN=/usr/local/bin/uvx
+RUN curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh
 
-# Install Serena MCP server from pinned version in requirements.txt
+# Install Serena MCP server from pinned version in requirements.txt;
+# tool venv goes to /opt/uv-tools and the wrapper binary to /usr/local/bin.
 COPY requirements.txt /tmp/requirements.txt
-RUN uv tool install -p 3.13 "$(grep '^serena-agent' /tmp/requirements.txt | head -1)" --prerelease=allow \
+RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin \
+    uv tool install -p 3.13 "$(grep '^serena-agent' /tmp/requirements.txt | head -1)" --prerelease=allow \
+    && chmod -R a+rX /opt/uv-tools \
     && test -x "${SERENA_BIN}" \
     && test -x "${UVX_BIN}"
 
@@ -84,6 +88,5 @@ COPY docker/register_mcp_json.py /usr/local/bin/register-mcp-json
 RUN chmod +x /usr/local/bin/ai-cli-entrypoint /usr/local/bin/register-mcp-json
 
 ENV AI_CLI_LOG_LEVEL=info
-WORKDIR /workdir
 ENTRYPOINT ["/usr/local/bin/ai-cli-entrypoint"]
 CMD ["--claude"]

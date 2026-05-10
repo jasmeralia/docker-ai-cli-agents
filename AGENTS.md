@@ -29,11 +29,11 @@ Primary goals:
 
 ## Base Image
 
-`node:20`
+`node:25`
 
-Matches Anthropic's own devcontainer base. All npm tools (Claude Code, Codex, ccusage, ccusage-codex) are installed from `package.json` via `npm ci --prefix /opt/npm-tools` for reproducible builds. Dependabot tracks the npm ecosystem and raises PRs when new versions are available.
+All npm tools (Claude Code, Codex, ccusage, ccusage-codex) are installed from `package.json` via `npm ci --prefix /opt/npm-tools` for reproducible builds. Dependabot tracks the npm ecosystem and raises PRs when new versions are available.
 
-The image also installs common development and debugging packages: `build-essential`, `ca-certificates`, `curl`, `docker.io`, `fd-find`, `file`, `git`, `jq`, `less`, `procps`, `python3`, `python3-pip`, `python3-venv`, `ripgrep`, `sqlite3`, `tree`, `wget`, `xz-utils`, and `yq`.
+The image also installs common development and debugging packages: `build-essential`, `ca-certificates`, `curl`, `docker.io`, `fd-find`, `file`, `git`, `gosu`, `jq`, `less`, `procps`, `python3`, `python3-pip`, `python3-venv`, `ripgrep`, `sqlite3`, `sudo`, `tree`, `wget`, `xz-utils`, and `yq`. `gosu` and `sudo` are present so the entrypoint can create a host-matching user and grant passwordless sudo access at runtime.
 
 ---
 
@@ -52,29 +52,45 @@ The release version is derived from the latest git tag at build time — no sepa
 
 ## Container Runtime Layout
 
-The entrypoint expects the following bind mounts for persistent state:
+The container mirrors the invoking host user: the entrypoint (running as root) creates a user with the same name, UID, GID, and `$HOME` path, grants it passwordless sudo, then drops privileges via `gosu` before running any agent. The wrapper passes host identity via env vars:
 
-| Host path | Container path | Purpose |
+| Env var | Value | Purpose |
 |---|---|---|
-| `~/.claude` | `/root/.claude` | Claude Code config, MCP registrations, auth |
-| `~/.claude.json` | `/root/.claude.json` | Claude Code account config |
-| `~/.codex` | `/root/.codex` | Codex config including MCP server config |
-| `~/.config/gh` | `/root/.config/gh` | GitHub CLI auth |
-| `<workspace>` | `/workdir` | User project files |
+| `HOST_USER` | `$(id -un)` | Username to create inside the container |
+| `HOST_UID` | `$(id -u)` | UID to assign |
+| `HOST_GID` | `$(id -g)` | GID to assign |
+| `HOST_HOME` | `$HOME` | Home directory path (must be bind-mounted) |
+| `HOST_CWD` | `$(pwd -P)` | Working directory to `cd` to before running the agent |
+| `HOME` | same as `HOST_HOME` | Set for the container process |
 
-The `scripts/run_with_truenas_mounts.sh` script and `bin/tn*` wrappers set these up automatically.
+The wrapper sets up bind mounts so host paths resolve identically inside the container:
+
+| Host path | Container path | Condition |
+|---|---|---|
+| `$HOME` | `$HOME` (same path) | Always |
+| `/mnt` | `/mnt` | When `/mnt` exists on host |
+| `$(pwd -P)` | same path | When cwd is outside `$HOME` and `/mnt` |
+| `/var/run/docker.sock` | `/var/run/docker.sock` | When `SANDBOX_DOCKER != 0` and socket exists |
+
+Because `$HOME` is mounted at its exact host path, `~/.claude`, `~/.codex`, and `~/.config/gh` are reachable at the same paths as on the host — no per-config bind mounts needed.
+
+The `scripts/run_with_truenas_mounts.sh` script and `bin/tn*` wrappers set all of this up automatically.
 
 ---
 
 ## Entrypoint Behavior
 
-The container entrypoint (`docker/entrypoint.sh`) selects a runtime mode via its first argument. Default is `--claude`.
+The container entrypoint (`docker/entrypoint.sh`) runs in two phases:
+
+**Root phase** (always first): creates a user inside the container that mirrors the host user (using `HOST_USER`/`HOST_UID`/`HOST_GID`/`HOST_HOME` env vars), grants it passwordless sudo, adds it to the Docker socket's group if the socket is mounted, validates `HOST_CWD` is reachable, then re-execs itself as the host user via `gosu`.
+
+**User phase**: `cd`s to `HOST_CWD`, then selects a runtime mode via its first argument. Default is `--claude`.
 
 | Flag | Runs |
 |---|---|
 | `--claude` | `claude` (all prompts enabled) |
 | `--claude-safe` | `claude --permission-mode acceptEdits` (file ops auto-approved, shell prompted) |
-| `--claude-yolo` | `claude --dangerously-skip-permissions` (no prompts) |
+| `--claude-yolo` | `claude --dangerously-skip-permissions` (no prompts; works because the process is non-root) |
 | `--codex` | `codex` (all prompts enabled) |
 | `--codex-safe` | `codex -a untrusted` (trusted read-only commands auto-approved, others prompted) |
 | `--codex-yolo` | `codex --dangerously-bypass-approvals-and-sandbox` (no prompts) |
@@ -87,7 +103,7 @@ The Docker socket is mounted by default (when `/var/run/docker.sock` exists). Se
 
 Arguments after the selector are passed to the chosen CLI.
 
-On startup the entrypoint:
+On startup the user phase:
 1. Logs versions of all installed tools
 2. Ensures `~/.claude` and `~/.codex` exist
 3. Registers Serena MCP with Claude Code (if not already registered)
@@ -101,9 +117,9 @@ On startup the entrypoint:
 
 ### Serena
 
-Installed via `uv tool install -p 3.13` with the version pinned in `requirements.txt`. Binary at `/root/.local/bin/serena` (env var `SERENA_BIN`).
+Installed via `uv tool install -p 3.13` with the version pinned in `requirements.txt`. Binary at `/usr/local/bin/serena` (env var `SERENA_BIN`). The tool venv lives in `/opt/uv-tools` (world-readable, created at build time by root).
 
-Registered for Claude Code with `--context=claude-code` and for Codex with `--context=codex`. Both use `--project-from-cwd` so Serena detects the project from `/workdir`. Codex registration also sets `cwd = "/workdir"` to ensure the working directory is correct when Codex spawns the MCP subprocess.
+Registered for Claude Code with `--context=claude-code` and for Codex with `--context=codex`. Both use `--project-from-cwd` so Serena detects the project from the actual working directory (the real host path, not `/workdir`). Codex registration sets `cwd` to `HOST_CWD` so the MCP subprocess starts in the correct directory.
 
 The Serena project config for this repo lives in `.serena/project.yml`.
 
@@ -112,11 +128,11 @@ The Serena project config for this repo lives in `.serena/project.yml`.
 - *Auto-installs the LSP*: bash (`bash-language-server` via npm), TypeScript/JS, Python (pyright), JSON, YAML, TOML, Terraform, Vue, and other npm-distributed LSPs. These work out of the box because Node 20 and npm are in the image.
 - *Requires pre-installed runtime*: Go (gopls), Rust (rust-analyzer), Java/Kotlin (jdtls), Ruby, C/C++ (clangd), and most compiled languages. Serena can drive these LSPs but the toolchain must be added to the Dockerfile first.
 
-The image currently includes Node 20 + npm and Python 3.11, so bash, TypeScript/JavaScript, Python, and the data-format LSPs work without any changes.
+The image currently includes Node 25 + npm and Python 3.13, so bash, TypeScript/JavaScript, Python, and the data-format LSPs work without any changes.
 
 ### Odoo MCP
 
-Run via `uvx mcp-server-odoo` (uvx at `/root/.local/bin/uvx`, env var `UVX_BIN`). No pre-installation needed.
+Run via `uvx mcp-server-odoo` (uvx at `/usr/local/bin/uvx`, env var `UVX_BIN`). No pre-installation needed.
 
 Not injected by the entrypoint. Configure once on the host in `~/.codex/config.toml` (Codex) or via `claude mcp add --scope user` (Claude Code). Because both config locations are bind-mounted, the registration persists across container runs without any per-run credential passing.
 

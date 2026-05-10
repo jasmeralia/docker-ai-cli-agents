@@ -4,7 +4,7 @@ Docker image and automation for running Claude Code and Codex CLI in a sandboxed
 
 ## What this repo includes
 
-- A Docker image built on `node:20` with Claude Code, Codex CLI, and usage analyzers installed from npm
+- A Docker image built on `node:25` with Claude Code, Codex CLI, and usage analyzers installed from npm
 - [Serena MCP](https://github.com/oraios/serena) — code intelligence server, always registered for both agents on startup
 - [Odoo MCP](https://github.com/ivnvxd/mcp-server-odoo) — Odoo ERP integration, configured once on the host via bind-mounted config files
 - A mode-selecting entrypoint for `--claude`, `--codex`, `--ccusage`, `--codexusage`, `--register-mcp-json`, or `--shell`
@@ -40,19 +40,23 @@ The image includes baseline development and debugging packages in addition to No
 
 ## Run
 
+The container mirrors the invoking user's identity: the entrypoint creates a matching user (same name, UID, GID, and `$HOME` path) inside the container so all host paths resolve identically. `$HOME` is bind-mounted at the same path, so `~/.claude`, `~/.codex`, `~/.config/gh`, and any project under `$HOME` are visible without extra mounts. The working directory is preserved exactly — no `/workdir` rewriting.
+
 Default mode is `--claude`:
 
 ```bash
 docker run --rm -it \
-  --mount type=bind,src="$(pwd)",dst=/workdir \
-  --mount type=bind,src="${HOME}/.claude",dst=/root/.claude \
-  --mount type=bind,src="${HOME}/.claude.json",dst=/root/.claude.json \
-  --mount type=bind,src="${HOME}/.codex",dst=/root/.codex \
-  --mount type=bind,src="${HOME}/.config/gh",dst=/root/.config/gh \
-  --workdir /workdir \
-  -e HOME=/root \
+  --mount "type=bind,src=${HOME},dst=${HOME}" \
+  -e HOST_USER="$(id -un)" \
+  -e HOST_UID="$(id -u)" \
+  -e HOST_GID="$(id -g)" \
+  -e HOST_HOME="${HOME}" \
+  -e HOST_CWD="$(pwd -P)" \
+  -e HOME="${HOME}" \
   ghcr.io/<owner>/docker-ai-cli-agents:latest
 ```
+
+Add `--mount "type=bind,src=/mnt,dst=/mnt"` when TrueNAS datasets or other paths under `/mnt` need to be reachable. Add an extra bind mount at its exact path for any working directory that falls outside `$HOME` and `/mnt`.
 
 Explicit modes:
 
@@ -75,8 +79,10 @@ Arguments after the mode selector are passed through to the selected CLI or shel
 
 The `bin/` directory contains thin wrappers around `scripts/run_with_truenas_mounts.sh` that:
 
-- Bind-mount the current host directory to `/workdir`
-- Bind-mount `~/.claude`, `~/.claude.json`, `~/.codex`, and `~/.config/gh` from the host so config and auth persist between container runs
+- Mount `$HOME` at its exact host path so all config (`~/.claude`, `~/.codex`, `~/.config/gh`) and project files resolve identically inside and outside the container
+- Mount `/mnt` when present, making TrueNAS datasets or other datasets reachable at their host paths
+- Bind-mount the current directory at its exact host path when it falls outside `$HOME` and `/mnt`
+- Mirror the host user's name, UID, GID, and `$HOME` so file ownership is correct without any `chown`
 - Auto-detect the image reference and pull the latest image automatically when no tag is pinned
 - Forward all arguments to the selected mode
 
@@ -112,7 +118,7 @@ The `--tag` flag (or `TN_AI_CLI_TAG` env var) replaces the tag portion of the de
 **Optional flags:**
 
 - `SANDBOX_DOCKER=0` — disables the Docker socket mount (mounted by default when present)
-- `AI_CLI_LOG_LEVEL=debug` — enables verbose startup logging
+- `AI_CLI_LOG_LEVEL=debug` — enables verbose startup logging including identity setup
 
 ## GitHub authentication
 
@@ -171,7 +177,7 @@ Serena uses [solidlsp](https://github.com/oraios/solidlsp) to drive language ser
 **Requires adding the runtime to the image** — Serena knows how to drive these LSPs but the compiler/toolchain is not included:
 - Go (needs `gopls`), Rust (needs `rust-analyzer`), Java/Kotlin (needs JDK + jdtls), Ruby, C/C++ (clangd), and most other compiled languages
 
-To add a language, install its toolchain in the Dockerfile and verify Serena can find the LSP binary at `/workdir` startup.
+To add a language, install its toolchain in the Dockerfile and verify Serena can find the LSP binary at container startup.
 
 ### Project `.mcp.json` (Codex manual registration)
 
@@ -179,8 +185,9 @@ Claude Code natively loads `.mcp.json` from the project root. Codex has no equiv
 
 ```bash
 docker run --rm \
-  --mount type=bind,src="$(pwd)",dst=/workdir \
-  --mount type=bind,src="${HOME}/.codex",dst=/root/.codex \
+  --mount "type=bind,src=${HOME},dst=${HOME}" \
+  -e HOST_USER="$(id -un)" -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+  -e HOST_HOME="${HOME}" -e HOST_CWD="$(pwd -P)" -e HOME="${HOME}" \
   ghcr.io/<owner>/docker-ai-cli-agents:latest --register-mcp-json
 ```
 
