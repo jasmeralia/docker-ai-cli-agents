@@ -1,4 +1,4 @@
-FROM node:25
+FROM node:26
 
 # hadolint ignore=DL3002
 USER root
@@ -69,7 +69,8 @@ COPY requirements.txt /tmp/requirements.txt
 # the venv symlink target is world-executable.
 RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin UV_PYTHON_INSTALL_DIR=/opt/uv-python \
     uv tool install -p 3.13 "$(grep '^serena-agent' /tmp/requirements.txt | head -1)" --prerelease=allow \
-    && chmod -R a+rX /opt/uv-tools /opt/uv-python \
+    && chmod -R a+rX /opt/uv-tools \
+    && { [ ! -d /opt/uv-python ] || chmod -R a+rX /opt/uv-python; } \
     && test -x "${SERENA_BIN}" \
     && test -x "${UVX_BIN}"
 
