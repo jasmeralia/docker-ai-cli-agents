@@ -1,1 +1,1 @@
-serena-agent==1.5.1
+serena-agent==1.5.3
