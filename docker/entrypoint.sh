@@ -122,6 +122,32 @@ ensure_dir() {
   fi
 }
 
+ensure_statusline() {
+  local script="${HOME}/.claude/statusline-command.sh"
+  local settings="${HOME}/.claude/settings.json"
+
+  if [[ ! -f "${script}" ]]; then
+    cp /etc/ai-cli/statusline-command.sh "${script}"
+    chmod +x "${script}"
+    log INFO "installed statusline script to ${script}"
+  else
+    log DEBUG "statusline script already present: ${script}"
+  fi
+
+  if [[ ! -f "${settings}" ]]; then
+    printf '{"statusLine":{"type":"command","command":"bash %s"}}\n' "${script}" > "${settings}"
+    log INFO "created settings.json with statusLine config"
+  elif ! jq -e '.statusLine' "${settings}" > /dev/null 2>&1; then
+    local tmp
+    tmp=$(mktemp)
+    jq --arg cmd "bash ${script}" '.statusLine = {"type":"command","command":$cmd}' "${settings}" > "${tmp}" \
+      && mv "${tmp}" "${settings}"
+    log INFO "added statusLine config to settings.json"
+  else
+    log DEBUG "statusLine already configured in settings.json"
+  fi
+}
+
 register_serena_claude() {
   if ! claude mcp list 2>/dev/null | grep -q "^serena"; then
     log INFO "registering Serena MCP server with Claude Code"
@@ -174,6 +200,7 @@ log INFO "gh version: $(command_version gh)"
 ensure_dir "${HOME}/.claude"
 ensure_dir "${HOME}/.codex"
 
+ensure_statusline
 register_serena_claude
 register_serena_codex
 

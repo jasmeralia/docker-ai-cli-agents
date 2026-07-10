@@ -8,7 +8,8 @@ Docker image and automation for running Claude Code and Codex CLI in a sandboxed
 - [Serena MCP](https://github.com/oraios/serena) — code intelligence server, always registered for both agents on startup
 - [Odoo MCP](https://github.com/ivnvxd/mcp-server-odoo) — Odoo ERP integration, configured once on the host via bind-mounted config files
 - A mode-selecting entrypoint for `--claude`, `--codex`, `--ccusage`, `--codexusage`, `--register-mcp-json`, or `--shell`
-- Common debugging utilities including `curl`, `file`, `git`, `jq`, `less`, `procps`, `ripgrep`, `sqlite3`, and `tree`
+- A default Claude Code statusline (context/session/week usage) installed automatically on first run
+- Common debugging utilities including `curl`, `file`, `git`, `jq`, `less`, `nano`, `procps`, `ripgrep`, `sqlite3`, and `tree`
 - `package.json` + `requirements.txt` as the source of truth for tool versions
 - Dependabot tracking npm, pip, GitHub Actions, and Docker base image
 - Auto-merge for Dependabot PRs (with CI gate) and automatic patch tagging and image publish on every master merge
@@ -37,6 +38,7 @@ The image includes baseline development and debugging packages in addition to No
 - Data and diagnostics: `jq`, `yq`, `sqlite3`, `file`
 - Process and network inspection: `procps`, `curl`, `wget`, `ca-certificates`
 - Source and build tooling: `git`, `build-essential`, `python3`, `python3-pip`, `python3-venv`
+- Editing: `nano`
 
 ## Run
 

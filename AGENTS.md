@@ -33,7 +33,7 @@ Primary goals:
 
 All npm tools (Claude Code, Codex, ccusage, ccusage-codex) are installed from `package.json` via `npm ci --prefix /opt/npm-tools` for reproducible builds. Dependabot tracks the npm ecosystem and raises PRs when new versions are available.
 
-The image also installs common development and debugging packages: `build-essential`, `ca-certificates`, `curl`, `docker.io`, `fd-find`, `file`, `git`, `gosu`, `jq`, `less`, `procps`, `python3`, `python3-pip`, `python3-venv`, `ripgrep`, `sqlite3`, `sudo`, `tree`, `wget`, `xz-utils`, and `yq`. `gosu` and `sudo` are present so the entrypoint can create a host-matching user and grant passwordless sudo access at runtime.
+The image also installs common development and debugging packages: `build-essential`, `ca-certificates`, `curl`, `docker.io`, `fd-find`, `file`, `git`, `gosu`, `jq`, `less`, `nano`, `procps`, `python3`, `python3-pip`, `python3-venv`, `ripgrep`, `sqlite3`, `sudo`, `tree`, `wget`, `xz-utils`, and `yq`. `gosu` and `sudo` are present so the entrypoint can create a host-matching user and grant passwordless sudo access at runtime.
 
 ---
 
@@ -106,10 +106,13 @@ Arguments after the selector are passed to the chosen CLI.
 On startup the user phase:
 1. Logs versions of all installed tools
 2. Ensures `~/.claude` and `~/.codex` exist
-3. Registers Serena MCP with Claude Code (if not already registered)
-4. Registers Serena MCP with Codex (if not already registered)
+3. Installs a default Claude Code statusline script and enables it in settings (if not already present)
+4. Registers Serena MCP with Claude Code (if not already registered)
+5. Registers Serena MCP with Codex (if not already registered)
 
 `.mcp.json` servers are **not** auto-registered into the Codex global config on startup. Use `--register-mcp-json` explicitly when you want to sync them (see MCP Servers section).
+
+**Statusline** — the image ships `docker/statusline-command.sh` (baked into the image at `/etc/ai-cli/statusline-command.sh`) which prints context window, 5-hour, and 7-day rate-limit usage (`ctx 42% | sess 31% | week 18%`). On first run, the entrypoint copies it to `~/.claude/statusline-command.sh` and points `statusLine` at it in `~/.claude/settings.json`. Both steps are skip-if-present, so an existing script or `statusLine` config (including one the user customized) is never overwritten.
 
 ---
 

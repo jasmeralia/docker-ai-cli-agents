@@ -15,6 +15,7 @@ SHELL_SCRIPTS := \
 	scripts/run_with_truenas_mounts.sh \
 	scripts/smoke_test.sh \
 	docker/entrypoint.sh \
+	docker/statusline-command.sh \
 	bin/tnclaude \
 	bin/tnclaude-yolo \
 	bin/tncodex \

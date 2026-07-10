@@ -32,6 +32,7 @@ RUN apt-get update \
         gosu \
         jq \
         less \
+        nano \
         procps \
         python3 \
         python3-pip \
@@ -89,7 +90,9 @@ ENV CODEX_PLUGIN_DIR=/opt/claude-plugins/codex
 
 COPY docker/entrypoint.sh /usr/local/bin/ai-cli-entrypoint
 COPY docker/register_mcp_json.py /usr/local/bin/register-mcp-json
-RUN chmod +x /usr/local/bin/ai-cli-entrypoint /usr/local/bin/register-mcp-json
+COPY docker/statusline-command.sh /etc/ai-cli/statusline-command.sh
+RUN chmod +x /usr/local/bin/ai-cli-entrypoint /usr/local/bin/register-mcp-json \
+    && chmod 0644 /etc/ai-cli/statusline-command.sh
 
 ENV AI_CLI_LOG_LEVEL=info
 ENTRYPOINT ["/usr/local/bin/ai-cli-entrypoint"]
