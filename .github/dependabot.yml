@@ -8,14 +8,10 @@ updates:
     github-actions:
       patterns:
       - '*'
-  reviewers:
-  - jasmeralia
 - package-ecosystem: docker
   directory: /
   schedule:
     interval: weekly
-  reviewers:
-  - jasmeralia
 - package-ecosystem: npm
   directory: /
   schedule:
@@ -24,11 +20,7 @@ updates:
     npm-tools:
       patterns:
       - '*'
-  reviewers:
-  - jasmeralia
 - package-ecosystem: pip
   directory: /
   schedule:
     interval: weekly
-  reviewers:
-  - jasmeralia
