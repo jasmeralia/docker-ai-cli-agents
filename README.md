@@ -4,13 +4,14 @@ Docker image and automation for running Claude Code and Codex CLI in a sandboxed
 
 ## What this repo includes
 
-- A Docker image built on `node:25` with Claude Code, Codex CLI, and usage analyzers installed from npm
+- A Docker image built on `node:26` with Claude Code, Codex CLI, and usage analyzers installed from npm
 - [Serena MCP](https://github.com/oraios/serena) — code intelligence server, always registered for both agents on startup
 - [Odoo MCP](https://github.com/ivnvxd/mcp-server-odoo) — Odoo ERP integration, configured once on the host via bind-mounted config files
 - A mode-selecting entrypoint for `--claude`, `--codex`, `--ccusage`, `--codexusage`, `--register-mcp-json`, or `--shell`
 - A default Claude Code statusline (context/session/week usage) installed automatically on first run
 - Common debugging utilities including `curl`, `file`, `git`, `jq`, `less`, `nano`, `procps`, `ripgrep`, `sqlite3`, and `tree`
 - `package.json` + `requirements.txt` as the source of truth for tool versions
+- In-place tool self-updates inside long-running containers: the npm tools tree is owned by the runtime user and doubles as npm's global prefix, so Claude Code's built-in auto-updater works without sudo or a container recreation (pinned versions remain the baseline for fresh containers)
 - Dependabot tracking npm, pip, GitHub Actions, and Docker base image
 - Auto-merge for Dependabot PRs (with CI gate) and automatic patch tagging and image publish on every master merge
 

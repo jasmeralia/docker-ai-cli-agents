@@ -78,7 +78,14 @@ RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin UV_PYTHON_INSTALL_D
 # Install npm tools from lockfile for reproducible builds
 COPY package*.json /opt/npm-tools/
 RUN npm ci --prefix /opt/npm-tools
-ENV PATH="/opt/npm-tools/node_modules/.bin:${PATH}"
+# npm's global prefix also points at /opt/npm-tools so the CLIs' built-in
+# self-updaters (which install via npm's "global" method) can write there
+# without sudo once the entrypoint chowns it to the runtime user. Updated
+# copies land in /opt/npm-tools/bin, which shadows the lockfile-pinned
+# copies in node_modules/.bin via PATH order; fresh containers run the
+# pinned versions until an in-container update happens.
+ENV NPM_CONFIG_PREFIX=/opt/npm-tools
+ENV PATH="/opt/npm-tools/bin:/opt/npm-tools/node_modules/.bin:${PATH}"
 
 # Install Codex plugin for Claude Code; loaded via --plugin-dir to avoid
 # path conflicts with the host ~/.claude bind mount.
