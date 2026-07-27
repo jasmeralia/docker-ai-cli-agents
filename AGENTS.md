@@ -46,7 +46,7 @@ Tool versions are tracked in two manifest files:
 - `package.json` / `package-lock.json` — npm tools: `@anthropic-ai/claude-code`, `@openai/codex`, `ccusage`, `@ccusage/codex`
 - `requirements.txt` — Python tools: `serena-agent`
 
-Dependabot monitors both files (npm and pip ecosystems) and raises PRs automatically. PRs from `dependabot[bot]` are auto-approved and auto-merged once CI passes. Each merge to master triggers the tag-and-publish workflow, which bumps the patch version, pushes a `v*` tag, then immediately builds and pushes the Docker image to GHCR — all in one job to avoid the GitHub Actions limitation where `GITHUB_TOKEN`-pushed tags cannot trigger separate workflows.
+Dependabot monitors both files (npm and pip ecosystems) and raises PRs automatically. PRs from `dependabot[bot]` are auto-approved and auto-merged once CI passes. The auto-merge workflow authenticates with the `DEPENDABOT_MERGE_TOKEN` repo secret (a fine-grained PAT) rather than the default `GITHUB_TOKEN`, because pushes made with the default token do not trigger other workflows — merges done with it would silently skip tag-and-publish and no image would be built. Each merge to master triggers the tag-and-publish workflow, which bumps the patch version, pushes a `v*` tag, then immediately builds and pushes the Docker image to GHCR — all in one job to avoid the same `GITHUB_TOKEN` limitation for tag pushes.
 
 The release version is derived from the latest git tag at build time — no separate `versions.json` is needed.
 
