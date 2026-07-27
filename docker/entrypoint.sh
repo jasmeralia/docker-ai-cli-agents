@@ -49,6 +49,13 @@ if [[ "${AI_CLI_PHASE:-}" != "user" ]]; then
   printf '%s ALL=(ALL) NOPASSWD: ALL\n' "${HOST_USER}" > "/etc/sudoers.d/${HOST_USER}"
   chmod 0440 "/etc/sudoers.d/${HOST_USER}"
 
+  # Hand the npm tools tree to the runtime user so the CLIs' built-in
+  # auto-updaters can install newer versions in place (npm's global prefix
+  # points here via NPM_CONFIG_PREFIX) without recreating the container
+  if [[ "$(stat -c '%u:%g' /opt/npm-tools)" != "${HOST_UID}:${HOST_GID}" ]]; then
+    chown -R "${HOST_UID}:${HOST_GID}" /opt/npm-tools
+  fi
+
   # Add to the docker socket's group so the user can reach the Docker daemon
   if [[ -S "/var/run/docker.sock" ]]; then
     _sock_gid="$(stat -c '%g' /var/run/docker.sock)"

@@ -29,9 +29,11 @@ Primary goals:
 
 ## Base Image
 
-`node:25`
+`node:26`
 
 All npm tools (Claude Code, Codex, ccusage, ccusage-codex) are installed from `package.json` via `npm ci --prefix /opt/npm-tools` for reproducible builds. Dependabot tracks the npm ecosystem and raises PRs when new versions are available.
+
+npm's global prefix (`NPM_CONFIG_PREFIX`) also points at `/opt/npm-tools`, and the entrypoint chowns that tree to the runtime user, so the CLIs' built-in self-updaters can install newer versions in place — no sudo and no container recreation needed. See "Version Management" below.
 
 The image also installs common development and debugging packages: `build-essential`, `ca-certificates`, `curl`, `docker.io`, `fd-find`, `file`, `git`, `gosu`, `jq`, `less`, `nano`, `procps`, `python3`, `python3-pip`, `python3-venv`, `ripgrep`, `sqlite3`, `sudo`, `tree`, `wget`, `xz-utils`, and `yq`. `gosu` and `sudo` are present so the entrypoint can create a host-matching user and grant passwordless sudo access at runtime.
 
@@ -47,6 +49,12 @@ Tool versions are tracked in two manifest files:
 Dependabot monitors both files (npm and pip ecosystems) and raises PRs automatically. PRs from `dependabot[bot]` are auto-approved and auto-merged once CI passes. Each merge to master triggers the tag-and-publish workflow, which bumps the patch version, pushes a `v*` tag, then immediately builds and pushes the Docker image to GHCR — all in one job to avoid the GitHub Actions limitation where `GITHUB_TOKEN`-pushed tags cannot trigger separate workflows.
 
 The release version is derived from the latest git tag at build time — no separate `versions.json` is needed.
+
+### In-place updates inside a running container
+
+Long-running containers (e.g. a persistent `--remote-control` Claude session) do not need to be recreated to pick up new tool releases. Claude Code's built-in auto-updater runs during live sessions and installs via npm's "global" method, which targets npm's global prefix. The image sets `NPM_CONFIG_PREFIX=/opt/npm-tools` and the entrypoint chowns `/opt/npm-tools` to the runtime user, so those updates succeed unattended: the updated copy lands in `/opt/npm-tools/bin/`, which precedes the lockfile-pinned `/opt/npm-tools/node_modules/.bin/` on `PATH`. The already-running process keeps its in-memory version; the next session or reconnect in that container picks up the new one.
+
+In-place updates live in the container's writable layer, so recreating the container discards them and starts fresh from the image's pinned versions — the `package.json` pin is the floor for new containers, not a ceiling for running ones.
 
 ---
 
@@ -147,7 +155,7 @@ The [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) plugin is clone
 
 ## CLI Installation
 
-All npm tools are installed via `npm ci --prefix /opt/npm-tools` from `package.json`. The binaries land in `/opt/npm-tools/node_modules/.bin/` which is added to `PATH`.
+All npm tools are installed via `npm ci --prefix /opt/npm-tools` from `package.json`. The binaries land in `/opt/npm-tools/node_modules/.bin/` which is added to `PATH`. If a tool has self-updated inside the container (see "In-place updates" above), the updated binary in `/opt/npm-tools/bin/` shadows the baked one via `PATH` order.
 
 | Tool | npm Package |
 |---|---|
