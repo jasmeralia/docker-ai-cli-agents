@@ -23,4 +23,7 @@ jobs:
       - name: Enable auto-merge
         run: gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A PAT, not GITHUB_TOKEN: pushes made with the default token do not
+          # trigger other workflows, so merges done with it silently skip the
+          # tag-and-publish workflow and no image gets built.
+          GH_TOKEN: ${{ secrets.DEPENDABOT_MERGE_TOKEN }}
