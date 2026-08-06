@@ -1,6 +1,6 @@
 FROM node:26
 
-# hadolint ignore=DL3002
+# hadolint ignore=DL3002,DL3066
 USER root
 
 ARG DEBIAN_FRONTEND=noninteractive
