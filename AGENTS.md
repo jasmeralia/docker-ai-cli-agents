@@ -11,6 +11,8 @@ Prefer the repo `Makefile` for routine validation and image creation:
 
 When making code changes, always update `README.md` and `AGENTS.md` to reflect what changed — entrypoint behavior, new env vars, new MCP servers, changed script paths, new make targets, etc. Documentation is part of the changeset, not a follow-up task.
 
+Do not commit removed legacy files (`versions.json`, `Jenkinsfile`, `scripts/update_versions.py`).
+
 ---
 
 ## Purpose
