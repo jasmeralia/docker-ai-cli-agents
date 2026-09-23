@@ -4,9 +4,9 @@
   "private": true,
   "description": "Package manifest for npm tool versions tracked by Dependabot",
   "dependencies": {
-    "@anthropic-ai/claude-code": "2.1.270",
+    "@anthropic-ai/claude-code": "2.1.278",
     "@ccusage/codex": "19.0.0",
-    "@openai/codex": "0.154.0",
-    "ccusage": "20.0.20"
+    "@openai/codex": "0.155.1",
+    "ccusage": "20.0.23"
   }
 }
