@@ -253,7 +253,7 @@ Tool versions are pinned in:
 - `package.json` — npm tools (`@anthropic-ai/claude-code`, `@openai/codex`, `ccusage`, `@ccusage/codex`)
 - `requirements.txt` — Python tools (`serena-agent`)
 
-Dependabot monitors both files weekly and raises PRs automatically. Dependabot PRs are auto-merged once CI (`make lint` + `make build`) passes. Each merge to master bumps the patch tag and immediately builds and publishes a new image to GHCR.
+Dependabot monitors both files weekly and raises PRs automatically. Dependabot PRs are auto-merged once CI (`make lint` + `make build`) passes. Each merge to master finds the highest version-sorted release tag, bumps its patch number, and immediately builds and publishes a new image to GHCR. Version sorting keeps releases advancing correctly when multiple tags point to the same commit.
 
 To pin or roll back to a specific release, use the image tag:
 
